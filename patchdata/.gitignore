@@ -1,0 +1,6 @@
+*.zip
+liberty/
+notredame/
+yosemite/
+*.h5
+*.cache

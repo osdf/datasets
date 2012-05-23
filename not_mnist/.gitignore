@@ -1,0 +1,4 @@
+*.tar.gz
+*.h5
+notMNIST_small/
+notMNIST_large/
