@@ -5,6 +5,7 @@ The three datasets liberty, notredame and yosemite:
 - wget http://www.cs.ubc.ca/~mbrown/patchdata/liberty.zip
 - wget http://www.cs.ubc.ca/~mbrown/patchdata/notredame.zip
 - wget http://www.cs.ubc.ca/~mbrown/patchdata/yosemite.zip
+
 Extract all three zip files into liberty/, notredame/, yosemite/
 respectively.
 
