@@ -121,7 +121,8 @@ def evaluate(latent, testset, distances, normalizations):
             m_dist = _histogram(matches, int(pairs), _dist_table[dist], _norm_table[norm])
             nonm_dist = _histogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
             curve = roc(m_dist, nonm_dist)
-            roc_pair[(dist, norm)] = {"fp_at_95": fp_at_95(curve), "roc": curve}
+            roc_pair[(dist, norm)] = {"fp_at_95": fp_at_95(curve), 
+                    "roc": curve, "m_dist": m_dist, "nonm_dist": nonm_dist}
         rocs[pairs] = roc_pair
     return rocs
 
