@@ -10,4 +10,5 @@ Extract all three zip files into liberty/, notredame/, yosemite/
 respectively.
 
 Run python dataset.py to build a hdf5 store (default name:
-patchdata.h5), the size is about 6GB.
+patchdata_64x64.h5), the size is about 6GB (saved as uint8!).
+Use ```select``` to build a store useful for training.
