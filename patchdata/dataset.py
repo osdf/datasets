@@ -136,7 +136,8 @@ def info(dataset=dataset):
         print "No. of different 3Dids:", sum((tpl[0] for tpl in count_list))
 
 
-def select(store, dataset=dataset, index_set=[512, 512, 512], chunk=512, name="inputs", cache=True):
+def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
+        chunk=512, name="inputs", cache=True, dim=patch_x*patch_y):
     """Select from the _dataset_s in _store_ some patches, specified by _index_set_.
 
     A _store_ has the three subsets ["liberty", "notredame", "yosemite"].
@@ -159,27 +160,27 @@ def select(store, dataset=dataset, index_set=[512, 512, 512], chunk=512, name="i
         train_size += i if type(i) is int else len(i)
         valid_size += j if type(j) is int else len(j)
 
-    name = hashlib.sha1(str(store.attrs["shape"]) + str(dataset) + str(index_set))
+    name = hashlib.sha1(str(store.attrs["patch_shape"]) + str(dataset) + str(index_set))
     name = name.hexdigest()[:8]
     if cache is True and exists(name+".cache"):
+        print "Using cached version ", name
         return h5py.File(name+".cache", 'r')
 
     select = h5py.File(name+".cache", 'w')
-    sx, sy = store.attrs["shape"]
     
     train = select.create_group("train")
-    train = train.create_dataset(name="inputs", shape=(train_size, sx*sy), dtype=np.float64)
+    train = train.create_dataset(name="inputs", shape=(train_size, dim), dtype=np.float64)
     valid = select.create_group("validation")
-    valid = valid.create_dataset(name="inputs", shape=(valid_size, sx*sy), dtype=np.float64)
+    valid = valid.create_dataset(name="inputs", shape=(valid_size, dim), dtype=np.float64)
 
     jt = 0
     jv = 0
     for d, (rt, rv) in izip(dataset, index_set):
         if type(rv) is int:
-            print store.keys(), d, store[d]
+            print "Producing randomized selection", store.keys(), d, store[d]
             randoms = random.sample(xrange(store[d].shape[0]), rt+rv)
-            rt = randoms[-rv:]
-            rv = randoms[:rv]
+            rt = randoms[:rv]
+            rv = randoms[-rv:]
             rt.sort()
             rv.sort()
         jt = _fill_up(store[d], train, indices=rt, pos=jt, chunk=chunk)
