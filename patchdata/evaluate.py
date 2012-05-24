@@ -104,17 +104,14 @@ def fp_at_95(curve):
     return rates[0]
 
 
-def evaluate(latent, testset, distances, normalizations):
+def evaluate(eval_set, distances, normalizations):
     rocs = dict()
 
-    if latent is _nop:
-        print "evaluate works on pixel data, using _nop."
-    
-    for pairs in testset:
+    for pairs in eval_set:
         roc_pair = dict()
-        dset = testset[pairs]
-        matches = latent(dset["match"])
-        non_matches = latent(dset["non-match"])
+        dset = eval_set[pairs]
+        matches = dset["match"]
+        non_matches = dset["non-match"]
         for dist, norm in product(distances, normalizations):
             if dist is "HAM" and norm is not "01":
                 continue
