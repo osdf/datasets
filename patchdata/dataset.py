@@ -52,14 +52,14 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
         ds_path = join(path, ds)
         totals = _available_patches(ds_path)
         dset = f.create_dataset(name=ds, shape=(totals, patch_x*patch_y), dtype = np.uint8)
-        bmps = totals / per_bmp
+        bmps, mod = divmod(totals, per_bmp)
         print "For", ds, "reading a total of", totals, "patches from", bmps, "files into", fname
         for i in xrange(bmps):
             bmp = join(ds_path, ''.join(["patches", str(i).zfill(4), ".bmp"]))
             dset[i*per_bmp:(i+1)*per_bmp] = _crop_to_numpy(bmp)
-        if totals%per_bmp > 0:
+        if mod > 0:
             bmp = join(ds_path, ''.join(["patches", str(bmps).zfill(4), ".bmp"])) 
-            dset[-(totals%per_bmp):] = _crop_to_numpy(bmp)[:totals%per_bmp]
+            dset[-(totals%per_bmp):] = _crop_to_numpy(bmp)[:mod]
     f.attrs["dataset"] = dataset
     f.attrs["patch_shape"] = (patch_x, patch_y)
     print "Wrote", dataset, "to", fname, f
