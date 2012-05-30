@@ -69,9 +69,9 @@ def _create_grp(store, grp_name, batches, gray=False):
         if gray:
             soon_gray = _pil_array(dic["data"], _batch_size)
             for j, p in enumerate(soon_gray):
-                ins[i*_batch_size+j] = img.fromarray(p).convert("L")
+                ins[i*_batch_size+j] = np.asarray(img.fromarray(p).convert("L")).ravel()
         else:
-            ins[i*_batch_size:(i+1)*_batch_size] = dic["data"]
+            ins[i*_batch_size:(i+1)*_batch_size] = dic["data"].ravel()
         tars[i*_batch_size:(i+1)*_batch_size] = dic["labels"]
 
 
