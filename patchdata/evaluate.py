@@ -15,7 +15,7 @@ def cosine_dist(v1, v2):
 
 def l2_dist(v1, v2):
     """L2 distance between v1 and v2."""
-    return np.sqrt(np.sum(v1-v2)**2)
+    return np.sqrt(np.sum((v1-v2)**2))
 
 
 def ham_dist(v1, v2):
@@ -104,24 +104,24 @@ def fp_at_95(curve):
     return rates[0]
 
 
-def evaluate(latent, testset, distances, normalizations):
+def evaluate(eval_set, distances, normalizations):
     rocs = dict()
 
-    if latent is _nop:
-        print "evaluate works on pixel data, using _nop."
-    
-    for pairs in testset:
+    for pairs in eval_set:
         roc_pair = dict()
-        dset = testset[pairs]
-        matches = latent(dset["match"])
-        non_matches = latent(dset["non-match"])
+        dset = eval_set[pairs]
+        matches = dset["match"]
+        non_matches = dset["non-match"]
         for dist, norm in product(distances, normalizations):
             if dist is "HAM" and norm is not "01":
                 continue
             m_dist = _histogram(matches, int(pairs), _dist_table[dist], _norm_table[norm])
             nonm_dist = _histogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
             curve = roc(m_dist, nonm_dist)
-            roc_pair[(dist, norm)] = {"fp_at_95": fp_at_95(curve), "roc": curve}
+            fp95 = fp_at_95(curve)
+            print "Evaluate:", pairs, dist, norm, fp95
+            roc_pair[(dist, norm)] = {"fp_at_95": fp95, "roc": curve, 
+                    "m_dist": m_dist, "nonm_dist": nonm_dist}
         rocs[pairs] = roc_pair
     return rocs
 
