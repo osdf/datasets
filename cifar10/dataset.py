@@ -42,26 +42,30 @@ def build_store(store=_default_name):
     h5file.close()
 
 
-def build_gray_store(store="cifar10_gray_32x32.h5"):
+def build_gray_store(store="cifar10_gray_32x32.h5", size=None):
     """Build a hdf5 data store for CIFAR10, inputs are gray.
     """
     print "Writing to", store
     h5file = h5py.File(store, "w")
 
-    _create_grp(store=h5file, grp_name="train", batches=_train, gray=True)
-    _create_grp(store=h5file, grp_name="validation", batches=_valid, gray=True)
-    _create_grp(store=h5file, grp_name="test", batches=_test, gray=True)
+    _create_grp(store=h5file, grp_name="train", batches=_train, gray=True, size=size)
+    _create_grp(store=h5file, grp_name="validation", batches=_valid, gray=True, size=size)
+    _create_grp(store=h5file, grp_name="test", batches=_test, gray=True, size=size)
     
     print "Closing", store
     h5file.close()
 
 
-def _create_grp(store, grp_name, batches, gray=False):
+def _create_grp(store, grp_name, batches, gray=False, size=None):
     print "Creating", grp_name, "set."
     grp = store.create_group(grp_name)
-    # color images, three channels -> 32*32*3 input dimension
+    if size is None:
+        dx, dy = 32, 32
+    else:
+        dx, dy = size[0], size[1]
+    # color images, three channels -> dx*dy*3 input dimension
     color = 1 if gray else 3
-    ins = grp.create_dataset("inputs", shape=(len(batches)*_batch_size, 32*32*color), dtype=np.uint8)
+    ins = grp.create_dataset("inputs", shape=(len(batches)*_batch_size, dx*dy*color), dtype=np.uint8)
     tars = grp.create_dataset("targets", shape=(len(batches)*_batch_size,))
     for i, batch in enumerate(batches):
         print "Reading batch from", join(_default_path, _batch_path, batch)
@@ -69,7 +73,10 @@ def _create_grp(store, grp_name, batches, gray=False):
         if gray:
             soon_gray = _pil_array(dic["data"], _batch_size)
             for j, p in enumerate(soon_gray):
-                ins[i*_batch_size+j] = np.asarray(img.fromarray(p).convert("L")).ravel()
+                tmp = img.fromarray(p).convert("L")
+                if size is not None:
+                    tmp = tmp.resize(size, img.ANTIALIAS)
+                ins[i*_batch_size+j] = np.asarray(tmp).ravel()
         else:
             ins[i*_batch_size:(i+1)*_batch_size] = dic["data"].ravel()
         tars[i*_batch_size:(i+1)*_batch_size] = dic["labels"]
@@ -99,4 +106,5 @@ def _pil_array(pics, batch_size):
 
 
 if __name__=="__main__":
+    print "Building color store cifar10_32x32."
     build_store()
