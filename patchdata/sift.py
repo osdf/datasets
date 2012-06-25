@@ -47,6 +47,8 @@ def siftify(store, dataset, patch_shape, frame):
 
 def find_scale(dataset, log_scales, path=_default_path):
     """Find optimal scale for SIFT descriptors.
+
+    As of 2012/05/24, good scales are 1.75 and 2.1 (log-scale).
     """
     fname = "".join(["evaluate_", dataset, "_64x64.h5"])
     store = h5py.File(join(path, fname))

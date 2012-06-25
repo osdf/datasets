@@ -137,7 +137,7 @@ def info(dataset=dataset):
 
 
 def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
-        chunk=512, name="inputs", cache=True, dim=patch_x*patch_y):
+        chunk=512, cache=True, dim=patch_x*patch_y):
     """Select from the _dataset_s in _store_ some patches, specified by _index_set_.
 
     A _store_ has the three subsets ["liberty", "notredame", "yosemite"].
@@ -145,20 +145,15 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
     Default is to use all three subsets. _index_set_ defines for every
     subset, which patches (indentified by a list of ints) should be choosen.
     If _index_set_ is a list of numbers, then for every number a list of
-    random numbers of this lenght is generated and used as indices instead.
-    _chunk_ controls, how many patches are transfered in one got from 
+    random numbers of this length is generated and used as indices instead.
+    Note that the final _store_ has a group 'training' and a group
+    'validation', thus _index_set_ needs a tuple for every subset given
+    in _dataset_. _chunk_ controls, how many patches are transfered in one go from 
     the _store_ to the newly generated dataset, a flat hdf5 dataset. 
-    This dataset is named _name_.
     """
     random.seed()
 
     assert len(dataset) == len(index_set), "Every dataset needs its indices"
-
-    train_size = 0
-    valid_size = 0
-    for i, j in index_set:
-        train_size += i if type(i) is int else len(i)
-        valid_size += j if type(j) is int else len(j)
 
     name = hashlib.sha1(str(store.attrs["patch_shape"]) + str(dataset) + str(index_set))
     name = name.hexdigest()[:8]
@@ -167,7 +162,13 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
         return h5py.File(name+".cache", 'r')
 
     select = h5py.File(name+".cache", 'w')
-    
+
+    train_size = 0
+    valid_size = 0
+    for i, j in index_set:
+        train_size += i if type(i) is int else len(i)
+        valid_size += j if type(j) is int else len(j)
+   
     train = select.create_group("train")
     train = train.create_dataset(name="inputs", shape=(train_size, dim), dtype=np.float64)
     valid = select.create_group("validation")

@@ -37,6 +37,10 @@ _dist_table = {
 }
 
 
+_full_dist = ["L2", "L1", "COSINE", "HAMMING"]
+_cont_dist = ["L2", "L1", "COSINE"]
+
+
 def id(v):
     """v1 is not normalized."""
     return v
@@ -66,6 +70,10 @@ _norm_table = {
     ,"l1": l1
     ,"01": binary
 }
+
+
+_full_norms = ["id", "l2", "l1", "01"]
+_cont_norms = ["id", "l2", "l1"]
 
 
 def roc(matches, non_matches):
@@ -104,14 +112,17 @@ def fp_at_95(curve):
     return rates[0]
 
 
-def evaluate(eval_set, distances, normalizations):
+def evaluate(eval_set, distances=_cont_dist, normalizations=_cont_norms,
+        latent=_nop):
+    """
+    """
     rocs = dict()
 
     for pairs in eval_set:
         roc_pair = dict()
         dset = eval_set[pairs]
-        matches = dset["match"]
-        non_matches = dset["non-match"]
+        matches = latent(dset["match"])
+        non_matches = latent(dset["non-match"])
         for dist, norm in product(distances, normalizations):
             if dist is "HAM" and norm is not "01":
                 continue
