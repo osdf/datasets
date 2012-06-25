@@ -1,7 +1,7 @@
 These are the patches downloadable from
 [http://www.cs.ubc.ca/~mbrown/patchdata/patchdata.html].
 
-The three datasets liberty, notredame and yosemite:
+The three datasets ```liberty```, ```notredame``` and ```yosemite```:
 - ```wget http://www.cs.ubc.ca/~mbrown/patchdata/liberty.zip```
 - ```wget http://www.cs.ubc.ca/~mbrown/patchdata/notredame.zip```
 - ```wget http://www.cs.ubc.ca/~mbrown/patchdata/yosemite.zip```
@@ -11,5 +11,5 @@ respectively.
 
 Run ```python dataset.py``` to build a hdf5 store (default name:
 ```patchdata_64x64.h5```), the size is about 6GB (saved as uint8!).
-Use ```select``` to build a store useful for training. Use 
-```evaluate``` to evaluate on ground truth.
+Use ```select``` to build a store useful for training. Look into
+```evaluate.py``` in order to evaluate pairs on ground truth.
