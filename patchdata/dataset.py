@@ -97,22 +97,30 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path)
         f.close()
 
 
-def resize_store(store, new_store, size):
-    """Resize images in _store_ to _size_, save in _new_store_.
+def apply_to_store(store, new_store, method, pars):
+    """Apply _method_ to  images in _store_ to _size_,
+    save in _new_store_.
     """
     for attrs in store.attrs:
         new_store[attrs] = store[attrs]
         if attrs is "patch_shape":
-            new_store["patch_shape"] = size
+            if method is _crop:
+                dx = pars[2] - pars[0]
+                dy = pars[1] - pars[3]
+                new_store["patch_shape"] = (dx, dy)
+                new_size = dx*dy
+            else:
+                new_store["patch_shape"] = pars
+                new_size = pars[0]*pars[1]
 
     for key in store.keys():
         if type(store[key]) is h5py.Group:
             grp = new_store.create_group(name=key)
-            resize_store(store[key], grp, size)
+            apply_to_store(store[key], grp, method, pars)
         if type(store[key]) is h5py.Dataset:
-            dset = new_store.create_dataset(name=key, shape=(store[key].shape[0], size[0]*size[1]), dtype=store[key].dtype)
+            dset = new_store.create_dataset(name=key, shape=(store[key].shape[0], new_size), dtype=store[key].dtype)
             dset.attrs["patch_size"] = size
-            _resize(store[key], dset, size)
+            method(store[key], dset, pars)
 
 
 def info(dataset=dataset):
@@ -162,7 +170,7 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
         return h5py.File(name+".cache", 'r')
 
     select = h5py.File(name+".cache", 'w')
-
+    select.attrs["patch_shape"] = store.attrs["patch_shape"]
     train_size = 0
     valid_size = 0
     for i, j in index_set:
@@ -170,9 +178,16 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
         valid_size += j if type(j) is int else len(j)
    
     train = select.create_group("train")
+    train.attrs["patch_shape"] = store.attrs["patch_shape"]
+    
     train = train.create_dataset(name="inputs", shape=(train_size, dim), dtype=np.float64)
+    train.attrs["patch_shape"] = store.attrs["patch_shape"]
+    
     valid = select.create_group("validation")
+    valid.attrs["patch_shape"] = store.attrs["patch_shape"]
+    
     valid = valid.create_dataset(name="inputs", shape=(valid_size, dim), dtype=np.float64)
+    valid.attrs["patch_shape"] = store.attrs["patch_shape"]
 
     jt = 0
     jv = 0
@@ -180,48 +195,13 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
         if type(rv) is int:
             print "Producing randomized selection", store.keys(), d, store[d]
             randoms = random.sample(xrange(store[d].shape[0]), rt+rv)
-            rt = randoms[:rv]
+            rt = randoms[:-rv]
             rv = randoms[-rv:]
             rt.sort()
             rv.sort()
         jt = _fill_up(store[d], train, indices=rt, pos=jt, chunk=chunk)
         jv = _fill_up(store[d], valid, indices=rv, pos=jv, chunk=chunk)
     return select
-
-
-def visualize(array, rsz, xtiles=None, fill=0):
-    """Visualize flattened bitmaps.
-
-    _array_ is supposed to be a 1d array that
-    holds the bitmaps (of size _rsz_ each)
-    sequentially. _rsz_ must be a square number.
-
-    Specifiy the number of rows with _xtiles_.
-    If not specified, the layout is approximately
-    square. _fill_ defines the pixel border between
-    patches (default is black (==0)).
-    """
-    sz = array.size
-    fields = array.reshape(sz/rsz, rsz)
-    
-    # tiles per axes
-    xtiles = xtiles if xtiles else int(np.sqrt(sz/rsz))
-    ytiles = int(np.ceil(sz/rsz/(1.*xtiles)))
-    shape = int(np.sqrt(rsz))
-    
-    # take care of extra pixels for borders
-    pixelsy = ytiles * shape + ytiles + 1
-    pixelsx = xtiles * shape + xtiles + 1
-    # the tiling has this shape and _fill_ background
-    tiling = fill*np.ones((pixelsy, pixelsx), dtype=np.uint8)
-    
-    for row in xrange(ytiles):
-        for col in xrange(xtiles):
-            if (col+row*xtiles) < fields.shape[0]:
-                tile = fields[col + row * xtiles].reshape(shape, shape)
-                tile = np.asarray(_scale_01(tile) * 255, dtype=np.uint8)
-                tiling[shape * row + row + 1:shape * (row+1) + row + 1, shape * col + col + 1:shape * (col+1) + col + 1] = tile
-    return img.fromarray(tiling)
 
 
 def matches(dataset, pairs, path=_default_path):
@@ -314,6 +294,14 @@ def _resize(old_patches, new_patches, size):
         new_patches[i] = np.asarray(resized_patch, dtype=new_patches.dtype).ravel()
 
 
+def _crop(old_patches, new_patches, box):
+    old_size = old_patches.attrs["patch_size"]
+    for i, p in enumerate(old_patches):
+        p.resize(old_size)
+        croped_patch = img.fromarray(p).crop(box)
+        new_patches[i] = np.asarray(croped_patch, dtype=new_patches.dtype).ravel()
+
+
 def _crop_to_numpy(patchfile, ravel=True):
     """Convert _patchfile_ to a numpy array with patches per row.
 
@@ -328,20 +316,6 @@ def _crop_to_numpy(patchfile, ravel=True):
         else:
             arr.append(np.array(ptch))
     return np.array(arr)
-
-
-def _scale_01(arr, eps=1e-10):
-    """Scale arr between [0,1].
-
-    Useful for gray images to be produced with PIL.
-    Tries to avoid unnecessary contrast enhancement.
-    """
-    newarr = arr.copy()
-    mn = newarr.min()
-    newarr -= mn 
-    mx = newarr.max()
-    newarr *= 1.0/(mx + eps)
-    return newarr
 
 
 def _fill_up(from_store, to_store, indices, pos, chunk):
