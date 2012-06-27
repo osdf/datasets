@@ -16,7 +16,7 @@ except:
     import PIL as img
 
 
-from ..helpers import shuffle_list
+from helpers import helpers
 
 
 _default_path = dirname(__file__)
@@ -66,7 +66,7 @@ def _create_grp(store, grp_name, path):
     print "Actually used", count
 
     print "Shuffle."
-    shuffle_list(files)
+    helpers.shuffle_list(files)
 
     print "Filling store" , grp_name
     grp = store.create_group(grp_name)
