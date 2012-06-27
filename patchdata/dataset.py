@@ -62,6 +62,7 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
             dset[-(totals%per_bmp):] = _crop_to_numpy(bmp)[:mod]
     f.attrs["dataset"] = dataset
     f.attrs["patch_shape"] = (patch_x, patch_y)
+    f.close()
     print "Wrote", dataset, "to", fname, f
 
 
@@ -102,24 +103,24 @@ def apply_to_store(store, new_store, method, pars):
     save in _new_store_.
     """
     for attrs in store.attrs:
-        new_store[attrs] = store[attrs]
-        if attrs is "patch_shape":
+        if attrs == "patch_shape":
             if method is _crop:
                 dx = pars[2] - pars[0]
-                dy = pars[1] - pars[3]
-                new_store["patch_shape"] = (dx, dy)
-                new_size = dx*dy
+                dy = pars[3] - pars[1]
+                new_store.attrs["patch_shape"] = (dx, dy)
+                new_shape = dx*dy
             else:
-                new_store["patch_shape"] = pars
-                new_size = pars[0]*pars[1]
-
+                new_store.attrs["patch_shape"] = pars
+                new_shape = pars[0]*pars[1]
+        else:
+            new_store.attrs[attrs] = store.attrs[attrs]
     for key in store.keys():
         if type(store[key]) is h5py.Group:
             grp = new_store.create_group(name=key)
             apply_to_store(store[key], grp, method, pars)
         if type(store[key]) is h5py.Dataset:
-            dset = new_store.create_dataset(name=key, shape=(store[key].shape[0], new_size), dtype=store[key].dtype)
-            dset.attrs["patch_size"] = size
+            dset = new_store.create_dataset(name=key, shape=(store[key].shape[0], new_shape), dtype=store[key].dtype)
+            dset.attrs["patch_shape"] = new_shape
             method(store[key], dset, pars)
 
 
@@ -266,7 +267,7 @@ def summarize(dataset):
     for ds in dataset:
         summary[ds] = dict()
         # 3D ids are in info.txt, one line per 64x64 patch
-        path = join(_default, ds)
+        path = join(_default_path, ds)
         info = open(join(path, "info.txt"))
         # collect all 3D id counts in a dictionary:
         # keys of this dictionary are how many counts a 3D id has,
@@ -286,8 +287,18 @@ def summarize(dataset):
     return summary
 
 
+def crop(store, newst, x, y, dx, dy):
+    """Generate a new store _newst_ from _store_ by
+    cropping its images around at (x-dx, y-dy, x+dx, y+dy).
+    _newst_ is simply an open, empty hdf5 file.
+    """
+    box = (x-dx, y-dy, x+dx, y+dy)
+    apply_to_store(store, newst, _crop, box)
+    return newst
+
+
 def _resize(old_patches, new_patches, size):
-    old_size = old_patches.attrs["patch_size"]
+    old_size = old_patches.attrs["patch_shape"]
     for i, p in enumerate(old_patches):
         p.resize(old_size)
         resized_patch = img.fromarray(p).resize(size, img.ANTIALIAS)
@@ -295,7 +306,7 @@ def _resize(old_patches, new_patches, size):
 
 
 def _crop(old_patches, new_patches, box):
-    old_size = old_patches.attrs["patch_size"]
+    old_size = old_patches.attrs["patch_shape"]
     for i, p in enumerate(old_patches):
         p.resize(old_size)
         croped_patch = img.fromarray(p).crop(box)
