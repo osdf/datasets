@@ -176,33 +176,38 @@ def unwhiten(X, comp):
     return np.dot(X, uw)
 
 
-def apply_to_store(store, new_store, method, pars):
-    """Apply _method_ to  images in _store_,
+def apply_to_store(store, new, method, pars):
+    """Apply _method_ to images in _store_,
     save in _new_store_. _pars_ are parameters for
     _method_.
     """
     for key in store.keys():
         if type(store[key]) is h5py.Group:
-            grp = new_store.create_group(name=key)
+            grp = new.create_group(name=key)
             apply_to_store(store[key], grp, method, pars)
+            for attrs in store.attrs.keys():
+                new.attrs[attrs] = store.attrs[attrs]
+            for attrs in grp.attrs.keys():
+                new.attrs[attrs] = grp.attrs[attrs]
         if type(store[key]) is h5py.Dataset:
-            method(store, key, new_store, pars)
+            method(store, key, new, pars)
 
 
-def crop(store, newst, x, y, dx, dy):
+def crop(store, new, x, y, dx, dy):
     """Generate a new store _newst_ from _store_ by
     cropping its images around at (x-dx, y-dy, x+dx, y+dy).
     _newst_ is simply an open, empty hdf5 file.
     """
     box = (x-dx, y-dy, x+dx, y+dy)
-    apply_to_store(store, newst, _crop, box)
-    return newst
+    apply_to_store(store, new, _crop, box)
+    return new
 
 
 def simply_float(store):
     """Just dump store into a new store
     that is (i) of dtype float and
     (ii) writeable.
+    FIXME: Needs rework (get new store from caller)
     """
     tmp = ".".join([strftime("%Y-%m-%d-%H:%M:%S"), "float"])
     float_store = h5py.File(tmp, "w")
@@ -228,6 +233,10 @@ def _resize(store, key, new, shape):
         dset.attrs[attrs] = store[key].attrs[attrs]
     dset.attrs["patch_shape"] = shape
 
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs["patch_shape"] = shape
+
 
 def _crop(store, key, new, box):
     """
@@ -245,7 +254,11 @@ def _crop(store, key, new, box):
 
     for attrs in store[key].attrs:
         dset.attrs[attrs] = store[key].attrs[attrs]
-    dset.attrs["patch_shape"] = (dx, dy)
+    dset.attrs["patch_shape"] = (dy, dx)
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs["patch_shape"] = (dy, dx)
 
 
 def _floatify(store, key, float_store, to_ignore):
