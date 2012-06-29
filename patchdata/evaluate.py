@@ -112,8 +112,14 @@ def fp_at_95(curve):
     return rates[0]
 
 
-def evaluate(eval_set, distances=_cont_dist, normalizations=_cont_norms,
-        latent=_nop):
+def _nop(x):
+    """
+    """
+    return x
+
+
+def evaluate(eval_set, tag, distances=_cont_dist,
+        normalizations=_cont_norms, latent=_nop):
     """
     """
     rocs = dict()
@@ -130,7 +136,7 @@ def evaluate(eval_set, distances=_cont_dist, normalizations=_cont_norms,
             nonm_dist = _histogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
             curve = roc(m_dist, nonm_dist)
             fp95 = fp_at_95(curve)
-            print "Evaluate:", pairs, dist, norm, fp95
+            print "Evaluate "+str(tag)+":", pairs, dist, norm, fp95
             roc_pair[(dist, norm)] = {"fp_at_95": fp95, "roc": curve, 
                     "m_dist": m_dist, "nonm_dist": nonm_dist}
         rocs[pairs] = roc_pair
@@ -145,7 +151,3 @@ def _histogram(dataset, pairs, dist, norm):
         v1, v2 = dataset[2*i], dataset[2*i+1]
         hist.append(dist(norm(v1), norm(v2)))
     return hist
-
-
-def _nop(x):
-    return x
