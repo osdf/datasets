@@ -16,6 +16,7 @@ except:
 
 _default_path = dirname(__file__)
 _default_name = join(_default_path, "cifar10_32x32.h5")
+_default_gray = join(_default_path, "cifar10_gray_32x32.h5")
 _batch_path = "cifar-10-batches-py"
 _train = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4"]
 _valid = ["data_batch_5"]
@@ -37,12 +38,12 @@ def build_store(store=_default_name):
     _create_grp(store=h5file, grp_name="train", batches=_train)
     _create_grp(store=h5file, grp_name="validation", batches=_valid)
     _create_grp(store=h5file, grp_name="test", batches=_test)
-    
+
     print "Closing", store
     h5file.close()
 
 
-def build_gray_store(store="cifar10_gray_32x32.h5", size=None):
+def build_gray_store(store=_default_gray, size=None):
     """Build a hdf5 data store for CIFAR10, inputs are gray.
     """
     print "Writing to", store
@@ -51,22 +52,31 @@ def build_gray_store(store="cifar10_gray_32x32.h5", size=None):
     _create_grp(store=h5file, grp_name="train", batches=_train, gray=True, size=size)
     _create_grp(store=h5file, grp_name="validation", batches=_valid, gray=True, size=size)
     _create_grp(store=h5file, grp_name="test", batches=_test, gray=True, size=size)
-    
+
     print "Closing", store
     h5file.close()
 
 
 def _create_grp(store, grp_name, batches, gray=False, size=None):
+    """
+    """
     print "Creating", grp_name, "set."
     grp = store.create_group(grp_name)
+
     if size is None:
         dx, dy = 32, 32
     else:
         dx, dy = size[0], size[1]
+    grp.attrs["patch_shape"] = (dx, dy)
+
     # color images, three channels -> dx*dy*3 input dimension
     color = 1 if gray else 3
+
     ins = grp.create_dataset("inputs", shape=(len(batches)*_batch_size, dx*dy*color), dtype=np.uint8)
+    ins.attrs["patch_shape"] = (dx, dy)
+
     tars = grp.create_dataset("targets", shape=(len(batches)*_batch_size,))
+
     for i, batch in enumerate(batches):
         print "Reading batch from", join(_default_path, _batch_path, batch)
         dic = _unpickle(join(_default_path, _batch_path, batch))
