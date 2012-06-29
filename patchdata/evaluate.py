@@ -118,10 +118,12 @@ def _nop(x):
     return x
 
 
-def evaluate(eval_set, tag, distances=_cont_dist,
+def evaluate(eval_set, distances=_cont_dist,
         normalizations=_cont_norms, latent=_nop):
     """
     """
+    print "Evaluate", eval_set.attrs['dataset'], eval_set.attrs['patch_shape']
+
     rocs = dict()
 
     for pairs in eval_set:
@@ -136,7 +138,7 @@ def evaluate(eval_set, tag, distances=_cont_dist,
             nonm_dist = _histogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
             curve = roc(m_dist, nonm_dist)
             fp95 = fp_at_95(curve)
-            print "Evaluate "+str(tag)+":", pairs, dist, norm, fp95
+            print pairs, dist, norm, fp95
             roc_pair[(dist, norm)] = {"fp_at_95": fp95, "roc": curve, 
                     "m_dist": m_dist, "nonm_dist": nonm_dist}
         rocs[pairs] = roc_pair

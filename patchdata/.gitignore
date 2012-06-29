@@ -3,4 +3,5 @@ liberty/
 notredame/
 yosemite/
 *.h5
-*.cache
+*.select
+*.crop
