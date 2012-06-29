@@ -98,32 +98,6 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path)
         f.close()
 
 
-def apply_to_store(store, new_store, method, pars):
-    """Apply _method_ to  images in _store_ to _size_,
-    save in _new_store_.
-    """
-    for attrs in store.attrs:
-        if attrs == "patch_shape":
-            if method is _crop:
-                dx = pars[2] - pars[0]
-                dy = pars[3] - pars[1]
-                new_store.attrs["patch_shape"] = (dx, dy)
-                new_shape = dx*dy
-            else:
-                new_store.attrs["patch_shape"] = pars
-                new_shape = pars[0]*pars[1]
-        else:
-            new_store.attrs[attrs] = store.attrs[attrs]
-    for key in store.keys():
-        if type(store[key]) is h5py.Group:
-            grp = new_store.create_group(name=key)
-            apply_to_store(store[key], grp, method, pars)
-        if type(store[key]) is h5py.Dataset:
-            dset = new_store.create_dataset(name=key, shape=(store[key].shape[0], new_shape), dtype=store[key].dtype)
-            dset.attrs["patch_shape"] = new_shape
-            method(store[key], dset, pars)
-
-
 def info(dataset=dataset):
     """Print out basic information about _dataset_.
 
@@ -285,32 +259,6 @@ def summarize(dataset):
         summary[ds]["counts"] = id_count
         summary[ds]["entries"] = i+1
     return summary
-
-
-def crop(store, newst, x, y, dx, dy):
-    """Generate a new store _newst_ from _store_ by
-    cropping its images around at (x-dx, y-dy, x+dx, y+dy).
-    _newst_ is simply an open, empty hdf5 file.
-    """
-    box = (x-dx, y-dy, x+dx, y+dy)
-    apply_to_store(store, newst, _crop, box)
-    return newst
-
-
-def _resize(old_patches, new_patches, size):
-    old_size = old_patches.attrs["patch_shape"]
-    for i, p in enumerate(old_patches):
-        p.resize(old_size)
-        resized_patch = img.fromarray(p).resize(size, img.ANTIALIAS)
-        new_patches[i] = np.asarray(resized_patch, dtype=new_patches.dtype).ravel()
-
-
-def _crop(old_patches, new_patches, box):
-    old_size = old_patches.attrs["patch_shape"]
-    for i, p in enumerate(old_patches):
-        p.resize(old_size)
-        croped_patch = img.fromarray(p).crop(box)
-        new_patches[i] = np.asarray(croped_patch, dtype=new_patches.dtype).ravel()
 
 
 def _crop_to_numpy(patchfile, ravel=True):
