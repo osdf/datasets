@@ -15,13 +15,17 @@ from itertools import izip, product
 from collections import defaultdict
 from os.path import dirname, join, exists
 import hashlib
-
 import numpy as np
 import h5py
+
 try:
     import Image as img
 except:
     import PIL as img
+
+
+from helpers import helpers
+
 
 # the dataset comprises 3 subdatasets
 dataset = ["liberty", "notredame", "yosemite"]
@@ -61,7 +65,7 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
             bmp = join(ds_path, ''.join(["patches", str(bmps).zfill(4), ".bmp"])) 
             dset[-(totals%per_bmp):] = _crop_to_numpy(bmp)[:mod]
     f.attrs["dataset"] = dataset
-    f.attrs["patch_shape"] = (patch_x, patch_y)
+    f.attrs["patch_shape"] = (patch_y, patch_x)
     f.close()
     print "Wrote", dataset, "to", fname, f
 
@@ -72,7 +76,7 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path)
     There is one hdf5 per dataset, with the available number of pairs 
     in _pair_list_. These numbers form the groups of every store. 
     The store is using the original patches, scaled versions of 
-    these patches should be generated with resize_store. 
+    these patches should be generated with resize.
     
     Every group has two datasets, 'match' and 'non-match',
     both arrays of equal length, the original pairs are formed by
@@ -93,7 +97,7 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path)
             _build_pairing_store(group=grp, name="match", pairings=mtch, store=store[ds])
             _build_pairing_store(group=grp, name="non-match", pairings=non_mtch, store=store[ds])
         f.attrs["dataset"] = ds
-        f.attrs["patch_shape"] = (patch_x, patch_y)
+        f.attrs["patch_shape"] = (patch_y, patch_x)
         f.attrs["pairs"] = pair_list
         f.close()
 
@@ -139,12 +143,12 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
     assert len(dataset) == len(index_set), "Every dataset needs its indices"
 
     name = hashlib.sha1(str(store.attrs["patch_shape"]) + str(dataset) + str(index_set))
-    name = name.hexdigest()[:8]
-    if cache is True and exists(name+".cache"):
+    name = name.hexdigest()[:8] + ".select"
+    if cache is True and exists(name):
         print "Using cached version ", name
-        return h5py.File(name+".cache", 'r')
+        return h5py.File(name, 'w')
 
-    select = h5py.File(name+".cache", 'w')
+    select = h5py.File(name, 'w')
     select.attrs["patch_shape"] = store.attrs["patch_shape"]
     train_size = 0
     valid_size = 0
@@ -261,6 +265,20 @@ def summarize(dataset):
     return summary
 
 
+def crop_store(store, x, y, dx, dy, cache=False):
+    """A new store that contains cropped images from _store_.
+    _x_, _y_, _dx_ and _dy_ are the cropping parameters.
+    """
+    name = store.filename.split(".")[0] + ".crop"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'w')
+
+    crop = h5py.File(name, 'w')
+    helpers.crop(store, crop, x, y, dx, dy)
+    return crop
+
+
 def _crop_to_numpy(patchfile, ravel=True):
     """Convert _patchfile_ to a numpy array with patches per row.
 
@@ -316,6 +334,8 @@ def _build_pairing_store(group, name, pairings, store):
     Note: The new store has dtype=np.float64.
     """
     dset = group.create_dataset(name=name, shape=(2*len(pairings), patch_x*patch_y), dtype=np.float64)
+    dset.attrs["patch_shape"] = (patch_y, patch_x)
+ 
     for j, pair in enumerate(pairings):
         p1, p2 = _patches_from_pair(pair=pair, store=store)
         dset[2*j] = p1
