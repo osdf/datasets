@@ -172,7 +172,7 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
     jv = 0
     for d, (rt, rv) in izip(dataset, index_set):
         if type(rv) is int:
-            print "Producing randomized selection", store.keys(), d, store[d]
+            print "Producing randomized selection", d, rt, rv, store[d]
             randoms = random.sample(xrange(store[d].shape[0]), rt+rv)
             rt = randoms[:-rv]
             rv = randoms[-rv:]
@@ -269,6 +269,7 @@ def crop_store(store, x, y, dx, dy, cache=False):
     """A new store that contains cropped images from _store_.
     _x_, _y_, _dx_ and _dy_ are the cropping parameters.
     """
+    print "Cropping from store", store
     name = store.filename.split(".")[0] + ".crop"
     if cache is True and exists(name):
         print "Using cached version ", name
@@ -277,6 +278,20 @@ def crop_store(store, x, y, dx, dy, cache=False):
     crop = h5py.File(name, 'w')
     helpers.crop(store, crop, x, y, dx, dy)
     return crop
+
+
+def stationary_store(store, chunk=512, eps=1e-8, C=1., cache=False):
+    """A new store that contains stationary images from _store_.
+    """
+    print "Stationarize store", store
+    name = store.filename.split(".")[0] + ".stat"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'w')
+
+    stat = h5py.File(name, 'w')
+    helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C)
+    return stat
 
 
 def _crop_to_numpy(patchfile, ravel=True):
