@@ -16,35 +16,6 @@ except:
     import PIL as img
 
 
-def stationary(store, chunk=512, eps=1e-8, C=1.):
-    """Subtract mean and divide by norm.
-
-    Works for input data that is stationary
-    (the statistics of every input dimension
-    follows the same distribution), e.g. image
-    patches.
-    """
-    for key in store.keys():
-        if type(store[key]) is h5py.Group:
-            stationary(store[key], chunk=chunk, eps=eps, C=C)
-        if type(store[key]) is h5py.Dataset:
-            print "Stationary on ", key
-            _stationary(store[key], chunk=chunk, eps=eps, C=C)
-
-
-def _stationary(store, chunk=512, eps=1e-8, C=1.):
-    """Subtract row-mean and divide by row-norm.
-
-    _store_ has to be an np.array. Works __inplace__.
-    """
-    for i in xrange(0, store.shape[0], chunk):
-        means = np.mean(store[i:i+chunk], axis=1)
-        store[i:i+chunk] -= np.atleast_2d(means).T
-        norm = np.sqrt(np.sum(store[i:i+chunk]**2, axis=1) + eps)
-        store[i:i+chunk] /= np.atleast_2d(norm).T
-        store[i:i+chunk] *= C
-
-
 def shuffle(store):
     """Shuffle rows inplace.
     """
@@ -176,12 +147,16 @@ def unwhiten(X, comp):
     return np.dot(X, uw)
 
 
-def apply_to_store(store, new, method, pars):
+def apply_to_store(store, new, method, pars, exclude=None):
     """Apply _method_ to images in _store_,
     save in _new_store_. _pars_ are parameters for
-    _method_.
+    _method_. If _method_ should not be applied to
+    groups/datasets with certain keys, put these
+    keys into _exclude_ (i.e. pass in as list of strings).
     """
     for key in store.keys():
+        if key in exclude:
+            continue
         if type(store[key]) is h5py.Group:
             grp = new.create_group(name=key)
             apply_to_store(store[key], grp, method, pars)
@@ -214,6 +189,34 @@ def simply_float(store):
     apply_to_store(store, float_store, _floatify, 0)
     print "Temporary float store. Take care of", tmp
     return float_store
+
+
+def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=None):
+    """Generate a new store _new_ from _store_ by
+    'stationary' normalization of _store_.
+    """
+    pars = (chunk, eps, C)
+    apply_to_store(store, new, _stationary, pars, exclude=None)
+
+
+def _stationary(store, key, new, pars):
+    """Subtract row-mean and divide by row-norm.
+
+    _store_ has to be an np.array. Works __inplace__.
+    """
+    chunk, eps, C = pars[0], pars[1], pars[2]
+    
+    dset = new.create_dataset(name=key, shape=store[key].shape, dtype=store[key].dtype)
+
+    for i in xrange(0, store.shape[0], chunk):
+        means = np.mean(store[i:i+chunk], axis=1)
+        dset[i:i+chunk] = store[i:i+chunk] - np.atleast_2d(means).T
+        norm = np.sqrt(np.sum(dset[i:i+chunk]**2, axis=1) + eps)
+        dset[i:i+chunk] /= np.atleast_2d(norm).T
+        dset[i:i+chunk] *= C
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
 
 
 def _resize(store, key, new, shape):
