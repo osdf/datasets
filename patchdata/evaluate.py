@@ -122,7 +122,10 @@ def evaluate(eval_set, distances=_cont_dist,
         normalizations=_cont_norms, latent=_nop):
     """
     """
-    print "Evaluate", eval_set.attrs['dataset'], eval_set.attrs['patch_shape']
+    print "Evaluate", eval_set.attrs['dataset']
+    for att in eval_set.attrs:
+        if att != "dataset":
+            print att, ":", eval_set.attrs[att]
 
     rocs = dict()
 
