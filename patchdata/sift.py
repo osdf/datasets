@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.ndimage import filters
 from os.path import join
 import h5py
 
@@ -7,7 +6,6 @@ import h5py
 from evaluate import evaluate
 from dataset import _default_path, patch_x, patch_y
 from vlfeat import vl_sift
-
 
 _pshape = (patch_x, patch_y)
 
@@ -61,4 +59,5 @@ def find_scale(dataset, log_scales, path=_default_path):
         sift = h5py.File(join(path, sift), "w")
         store_as_sift(store, sift, scale=2**scale)
         rocs[scale] = evaluate(sift, distances=dists, normalizations=norms)
+        sift.close()
     return rocs
