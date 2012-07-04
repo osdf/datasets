@@ -121,21 +121,18 @@ def pca(patches, covered=None, whiten=False, **schedule):
         comp = np.dot(u, np.diag(1./np.sqrt(s)))
     else:
         comp = u
-    rotated = np.dot(patches, comp)
-    return rotated, comp, s
+    return comp, s
 
 
-def zca(patches, eps=0.1, **schedule):
+def zca(patches, eps=1e-2, **schedule):
     """
     Compute ZCA.
     """
     n, d = patches.shape
     cov = np.dot(patches.T, patches)/n
     u, s, v = la.svd(cov, full_matrices=False)
-    print sum(s<eps)
     comp = np.dot(np.dot(u, np.diag(1./np.sqrt(s + eps))), u.T)
-    zca = np.dot(patches, comp)
-    return zca, comp, s
+    return comp, s
 
 
 def unwhiten(X, comp):
@@ -147,7 +144,7 @@ def unwhiten(X, comp):
     return np.dot(X, uw)
 
 
-def apply_to_store(store, new, method, pars, exclude=None):
+def apply_to_store(store, new, method, pars, exclude=[None]):
     """Apply _method_ to images in _store_,
     save in _new_store_. _pars_ are parameters for
     _method_. If _method_ should not be applied to
@@ -157,6 +154,7 @@ def apply_to_store(store, new, method, pars, exclude=None):
     for key in store.keys():
         if key in exclude:
             continue
+
         if type(store[key]) is h5py.Group:
             grp = new.create_group(name=key)
             apply_to_store(store[key], grp, method, pars)
@@ -164,17 +162,18 @@ def apply_to_store(store, new, method, pars, exclude=None):
                 new.attrs[attrs] = store.attrs[attrs]
             for attrs in grp.attrs.keys():
                 new.attrs[attrs] = grp.attrs[attrs]
+
         if type(store[key]) is h5py.Dataset:
             method(store, key, new, pars)
 
 
-def crop(store, new, x, y, dx, dy):
+def crop(store, new, x, y, dx, dy, exclude=[None]):
     """Generate a new store _newst_ from _store_ by
     cropping its images around at (x-dx, y-dy, x+dx, y+dy).
     _newst_ is simply an open, empty hdf5 file.
     """
     box = (x-dx, y-dy, x+dx, y+dy)
-    apply_to_store(store, new, _crop, box)
+    apply_to_store(store, new, _crop, box, exclude=[None])
     return new
 
 
@@ -191,12 +190,29 @@ def simply_float(store):
     return float_store
 
 
-def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=None):
+def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=[None]):
     """Generate a new store _new_ from _store_ by
     'stationary' normalization of _store_.
     """
     pars = (chunk, eps, C)
-    apply_to_store(store, new, _stationary, pars, exclude=None)
+    apply_to_store(store, new, _stationary, pars, exclude=exclude)
+
+
+def _at(store, key, new, pars):
+    """Apply affine transformation (at) to 
+    _store[key]_ members and build dataset in _new_.
+    """
+    chunk, M = pars[0], pars[1]
+    n, _ = store[key].shape[0]
+    shape = (n, M.shape[1])
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+
+    for i in xrange(0, n, chunk):
+        dset[i:i+chunk] = np.dot(store[key][i:i+chunk], M)
+ 
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset['Affine'] = M.shape[1]
 
 
 def _stationary(store, key, new, pars):
@@ -208,9 +224,9 @@ def _stationary(store, key, new, pars):
     
     dset = new.create_dataset(name=key, shape=store[key].shape, dtype=store[key].dtype)
 
-    for i in xrange(0, store.shape[0], chunk):
-        means = np.mean(store[i:i+chunk], axis=1)
-        dset[i:i+chunk] = store[i:i+chunk] - np.atleast_2d(means).T
+    for i in xrange(0, store[key].shape[0], chunk):
+        means = np.mean(store[key][i:i+chunk], axis=1)
+        dset[i:i+chunk] = store[key][i:i+chunk] - np.atleast_2d(means).T
         norm = np.sqrt(np.sum(dset[i:i+chunk]**2, axis=1) + eps)
         dset[i:i+chunk] /= np.atleast_2d(norm).T
         dset[i:i+chunk] *= C
