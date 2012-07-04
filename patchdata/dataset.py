@@ -143,12 +143,13 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
     assert len(dataset) == len(index_set), "Every dataset needs its indices"
 
     name = hashlib.sha1(str(store.attrs["patch_shape"]) + str(dataset) + str(index_set))
-    name = name.hexdigest()[:8] + ".select"
+    name = name.hexdigest()[:8] + ".select.h5"
     if cache is True and exists(name):
         print "Using cached version ", name
-        return h5py.File(name, 'w')
+        return h5py.File(name, 'r+')
 
     select = h5py.File(name, 'w')
+    print "No cache, writing to", name
     select.attrs["patch_shape"] = store.attrs["patch_shape"]
     train_size = 0
     valid_size = 0
@@ -180,6 +181,7 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
             rv.sort()
         jt = _fill_up(store[d], train, indices=rt, pos=jt, chunk=chunk)
         jv = _fill_up(store[d], valid, indices=rv, pos=jv, chunk=chunk)
+    select.attrs["Original"] = "from " + str(store.filename)
     return select
 
 
@@ -270,13 +272,18 @@ def crop_store(store, x, y, dx, dy, cache=False):
     _x_, _y_, _dx_ and _dy_ are the cropping parameters.
     """
     print "Cropping from store", store
-    name = store.filename.split(".")[0] + ".crop"
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(x) + str(y) + str(dx) + str(dy))
+
+    name = name.hexdigest()[:8] + ".crop.h5"
     if cache is True and exists(name):
         print "Using cached version ", name
-        return h5py.File(name, 'w')
+        return h5py.File(name, 'r+')
 
+    print "No cache, writing to", name
     crop = h5py.File(name, 'w')
     helpers.crop(store, crop, x, y, dx, dy)
+    crop.attrs["Cropped"] = "from " + str(store.filename)
     return crop
 
 
@@ -284,13 +291,17 @@ def stationary_store(store, chunk=512, eps=1e-8, C=1., cache=False):
     """A new store that contains stationary images from _store_.
     """
     print "Stationarize store", store
-    name = store.filename.split(".")[0] + ".stat"
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(chunk) + str(eps) + str(C))
+    name = name.hexdigest()[:8] + ".stat.h5"
     if cache is True and exists(name):
         print "Using cached version ", name
-        return h5py.File(name, 'w')
+        return h5py.File(name, 'r+')
 
+    print "No cache, writing to", name
     stat = h5py.File(name, 'w')
     helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C)
+    stat.attrs["Stationary"] = "from " + str(store.filename)
     return stat
 
 
