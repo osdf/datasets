@@ -5,11 +5,12 @@
 import numpy as np
 from itertools import product
 
+SMALL = 1e-8
 
 def cosine_dist(v1, v2):
     """Cosine similarity between two vectors, v1 and v2."""
-    n1 = np.sqrt(np.sum(v1**2))
-    n2 = np.sqrt(np.sum(v2**2))
+    n1 = np.sqrt(np.sum(v1**2) + SMALL)
+    n2 = np.sqrt(np.sum(v2**2) + SMALL)
     return 1 - np.dot(v1, v2)/(n1*n2)
 
 
@@ -48,12 +49,12 @@ def id(v):
 
 def l2(v):
     """v is l2 normalized."""
-    return v/np.sqrt(np.sum(v**2))
+    return v/np.sqrt(np.sum(v**2) + SMALL)
 
 
 def l1(v):
     """v is l1 normalized."""
-    return v/np.sum(np.abs(v))
+    return v/(np.sum(np.abs(v)) + SMALL)
 
 
 def binary(v):
@@ -79,22 +80,28 @@ _cont_norms = ["id", "l2", "l1"]
 def roc(matches, non_matches):
     """ROC for distances in _matches_ and _non_matches_.
     """
+    sortedm = matches[:]
+    sortedm.sort()
+    dist_at_95 = sortedm[int(0.95*len(matches))]
+    dist_at_75 = sortedm[int(0.75*len(matches))]
+    dist_max = sortedm[-1]
+    thresholds = list(np.linspace(dist_at_75, dist_max, 200))
     matches = np.array(matches)
     non_matches = np.array(non_matches)
     # number of true positives/false positives
     total_tp = float(len(matches))
     total_fp = float(len(non_matches))
-    # Threshold finding: I want to find tp and fp. Therefore
-    # look a distances between median, 75%Quartil (q3) and
-    # maximum distance in the matching histogramm.
-    med = np.median(matches)
-    q3 = np.median(matches[matches > med])
-    mx = np.max(matches)
-    # compute threshold by linear interplating 
-    # between median, q3 and max distance
-    thresholds = list(np.linspace(q3, mx, 200))
-    # summary: list of tuples, threshold and (tp,fp) pair.
-    curve = []
+    ## Threshold finding: I want to find tp and fp. Therefore
+    ## look a distances between median, 75%Quartil (q3) and
+    ## maximum distance in the matching histogramm.
+    #med = np.median(matches)
+    #q3 = np.median(matches[matches > med])
+    #mx = np.max(matches)
+    ## compute threshold by linear interplating
+    ## between median, q3 and max distance
+    #thresholds = list(np.linspace(q3, mx, 200))
+    ## summary: list of tuples, threshold and (tp,fp) pair.
+    curve = [{"true_positive": 0.95, "false_positive": np.sum(non_matches < dist_at_95)/total_fp, "threshold": dist_at_95}]
     for thresh in thresholds:
         tp = np.sum(matches < thresh)/total_tp
         fp = np.sum(non_matches < thresh)/total_fp
@@ -135,7 +142,7 @@ def evaluate(eval_set, distances=_cont_dist,
         matches = latent(dset["match"])
         non_matches = latent(dset["non-match"])
         for dist, norm in product(distances, normalizations):
-            if dist is "HAM" and norm is not "01":
+            if np.logical_xor(dist is "HAMMING", norm is "01"):
                 continue
             m_dist = _histogram(matches, int(pairs), _dist_table[dist], _norm_table[norm])
             nonm_dist = _histogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
