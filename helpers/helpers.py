@@ -19,17 +19,21 @@ except:
 def shuffle(store):
     """Shuffle rows inplace.
     """
+    if type(store) == h5py.File:
+        print "Shuffling inplace ..."
+
     for key in store.keys():
         if type(store[key]) is h5py.Group:
             shuffle(store[key])
         if type(store[key]) is h5py.Dataset:
-            print "Shuffle ", key
+            print "...", store, key
             _shuffle(store[key])
 
 
 def _shuffle(store):
     """Shuffle rows inplace.
-    _store_ has to an np.array.
+    _store_ has to behave like
+    an numpy.array.
     """
     N, _ = store.shape
     for i in xrange(N):
@@ -100,21 +104,34 @@ def visualize(array, rsz, rows, xtiles=None, fill=0):
     return img.fromarray(tiling)
 
 
-def pca(patches, covered=None, whiten=False, **schedule):
+def global_std(store, chunk):
+    """Compute global standard deviation.
+    Assumes that data is zero mean (per feature).
     """
-    Assume _already_ normalized patches.
+    N, d = store.shape
+    std = 0
+    for i in xrange(0, N, chunk):
+        std += ((store[i:i+chunk])**2).sum(axis=0)
+    return np.sqrt(std/(1.*N))
+
+
+def pca(data, covered=None, whiten=False, chunk=512, **schedule):
     """
-    n, d = patches.shape
-    # working with covariance + (svd on cov.) is
-    # much faster than svd on patches directly.
-    cov = np.dot(patches.T, patches)/n
+    Assume _already_ normalized patches. This is supposed
+    to work specifically for hdf5 _data_.
+    """
+    n, d = data.shape
+    cov = np.zeros((d,d))
+    for i in xrange(0, n, chunk):
+        tmp = np.array(data[i:i+chunk])
+        cov += np.dot(tmp.T, tmp)
+    cov /= n 
     u, s, v = la.svd(cov, full_matrices=False)
     if covered is None:
         retained = d
     else:
         total = np.cumsum(s)[-1]
         retained = sum(np.cumsum(s/total) <= covered)
-    print covered, whiten
     s = s[0:retained]
     u = u[:,0:retained]
     if whiten:
@@ -124,12 +141,16 @@ def pca(patches, covered=None, whiten=False, **schedule):
     return comp, s
 
 
-def zca(patches, eps=1e-2, **schedule):
+def zca(data, eps=1e-2, chunk=512, **schedule):
     """
     Compute ZCA.
     """
-    n, d = patches.shape
-    cov = np.dot(patches.T, patches)/n
+    n, d = data.shape
+    cov = np.zeros((d,d))
+    for i in xrange(0, n, chunk):
+        tmp = np.array(data[i:i+chunk])
+        cov += np.dot(tmp.T, tmp)
+    cov /= n 
     u, s, v = la.svd(cov, full_matrices=False)
     comp = np.dot(np.dot(u, np.diag(1./np.sqrt(s + eps))), u.T)
     return comp, s
@@ -142,6 +163,23 @@ def unwhiten(X, comp):
     """
     uw = la.pinv2(comp)
     return np.dot(X, uw)
+
+
+def apply_to_group(store, new, method, pars, group):
+    """
+    """
+    for key in store.keys():
+        if key in group:
+            method(store, new, pars)
+            return
+        else:
+            if type(store[key]) is h5py.Group:
+                grp = new.create_group(name=key)
+                apply_to_group(store[key], grp, method, pars, group)
+                for attrs in store.attrs.keys():
+                    new.attrs[attrs] = store.attrs[attrs]
+                for attrs in grp.attrs.keys():
+                    new.attrs[attrs] = grp.attrs[attrs]
 
 
 def apply_to_store(store, new, method, pars, exclude=[None]):
@@ -157,7 +195,7 @@ def apply_to_store(store, new, method, pars, exclude=[None]):
 
         if type(store[key]) is h5py.Group:
             grp = new.create_group(name=key)
-            apply_to_store(store[key], grp, method, pars)
+            apply_to_store(store[key], grp, method, pars, exclude)
             for attrs in store.attrs.keys():
                 new.attrs[attrs] = store.attrs[attrs]
             for attrs in grp.attrs.keys():
@@ -167,13 +205,19 @@ def apply_to_store(store, new, method, pars, exclude=[None]):
             method(store, key, new, pars)
 
 
+def resize(store, new, shape, exclude=[None]):
+    """Resize elements of _store_ to _shape_.
+    """
+    apply_to_store(store, new, _resize, shape, exclude=exclude)
+
+
 def crop(store, new, x, y, dx, dy, exclude=[None]):
-    """Generate a new store _newst_ from _store_ by
+    """Generate a new store _new_ from _store_ by
     cropping its images around at (x-dx, y-dy, x+dx, y+dy).
-    _newst_ is simply an open, empty hdf5 file.
+    _new_ is simply an open, empty hdf5 file.
     """
     box = (x-dx, y-dy, x+dx, y+dy)
-    apply_to_store(store, new, _crop, box, exclude=[None])
+    apply_to_store(store, new, _crop, box, exclude=exclude)
     return new
 
 
@@ -198,12 +242,164 @@ def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=[None]):
     apply_to_store(store, new, _stationary, pars, exclude=exclude)
 
 
+def row0(store, new, chunk=512, exclude=[None]):
+    """Every row has mean 0.
+    """
+    pars = None #dummy
+    apply_to_store(store, new, _row0, pars, exclude=exclude)
+
+
+def at(store, new, M, chunk=512, exclude=[None]):
+    """Affine Transformation
+    """
+    pars = (chunk, M)
+    apply_to_store(store, new, _at, pars, exclude=exclude)
+
+
+def zeroone(store, new, chunk=512, exclude=[None]):
+    """0/1 normalization
+    """
+    pars = chunk
+    apply_to_store(store, new, _zeroone, pars, exclude=exclude)
+
+
+def zeroone_group(store, new, group, chunk=512):
+    """
+    """
+    pars = chunk
+    apply_to_group(store, new, _zeroone_group, pars, group)
+
+
+def feat_mean(store, chunk=512):
+    """Featurewise mean.
+    """
+    N, d = store.shape
+    sm = 0
+    for i in xrange(0, N, chunk):
+        sm += store[i:i+chunk][:].sum(axis=0)
+    return sm/(1.*N)
+
+
+def feat_sub(store, new, chunk, sub, exclude=[None]):
+    """
+    """
+    pars = (chunk, sub)
+    apply_to_store(store, new, _feat_sub, pars, exclude=exclude)
+
+
+def global_div(store, new, chunk, div, exclude=[None]):
+    """
+    """
+    pars = (chunk, div)
+    apply_to_store(store, new, _global_div, pars, exclude=exclude)
+
+
+def _feat_sub(store, key, new, pars):
+    """Subtract featurewise.
+    """
+    chunk, sub = pars[0], pars[1]
+    shape = store[key].shape
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = store[key][i:i+chunk] - sub
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['feature mean'] = sub.mean()
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['feature mean'] = sub.mean()
+
+
+def _global_div(store, key, new, pars):
+    """
+    """
+    chunk, div = pars[0], pars[1]
+    shape = store[key].shape
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = store[key][i:i+chunk]/div
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['DIV'] = div
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['DIV'] = div
+
+
+
+def _zeroone(store, key, new, pars):
+    """Zero/One normalization.
+    """
+    chunk = pars
+    shape = store[key].shape 
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+    mn = np.inf
+    mx = -np.inf
+    for i in xrange(0, shape[0], chunk):
+        tmp_min = store[key][i:i+chunk][:].min()
+        tmp_max = store[key][i:i+chunk][:].max()
+        if tmp_min < mn:
+            mn = tmp_min
+        if tmp_max > mx:
+            mx = tmp_max
+
+    diff = mx-mn
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = (store[key][i:i+chunk] - mn)/diff
+ 
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['ZeroOne MinMax'] = (mn, mx)
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['ZeroOne MinMax'] = (mn, mx)
+    print key, (diff, mn, mx)
+
+
+def _zeroone_group(store, new, pars):
+    """Zero/One normalization on complete group
+    of _store_. Assumes that store is
+    a group of datasets!
+    """
+    chunk = pars
+    mn = np.inf
+    mx = -np.inf
+    for key in store.keys():
+        shape = store[key].shape
+        for i in xrange(0, shape[0], chunk):
+            tmp_min = store[key][i:i+chunk][:].min()
+            tmp_max = store[key][i:i+chunk][:].max()
+            if tmp_min < mn:
+                mn = tmp_min
+            if tmp_max > mx:
+                mx = tmp_max
+
+    diff = mx - mn
+
+    for key in store.keys():
+        dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+        for i in xrange(0, shape[0], chunk):
+            dset[i:i+chunk] = (store[key][i:i+chunk] - mn)/diff
+        for attrs in store[key].attrs:
+            dset.attrs[attrs] = store[key].attrs[attrs]
+        dset.attrs['ZeroOne MinMax'] = (mn, mx)
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+        new.attrs['ZeroOne MinMax'] = (mn, mx)
+
+
 def _at(store, key, new, pars):
     """Apply affine transformation (at) to 
     _store[key]_ members and build dataset in _new_.
     """
     chunk, M = pars[0], pars[1]
-    n, _ = store[key].shape[0]
+    n, _ = store[key].shape
     shape = (n, M.shape[1])
     dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
 
@@ -212,7 +408,11 @@ def _at(store, key, new, pars):
  
     for attrs in store[key].attrs:
         dset.attrs[attrs] = store[key].attrs[attrs]
-    dset['Affine'] = M.shape[1]
+    dset.attrs['Affine shape'] = M.shape[1]
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['Affine shape'] = M.shape[1]
 
 
 def _stationary(store, key, new, pars):
@@ -233,6 +433,50 @@ def _stationary(store, key, new, pars):
 
     for attrs in store[key].attrs:
         dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['StationaryC'] = C
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['StationaryC'] = C
+
+
+def _divisive(store, key, new, pars):
+    """Divide by row-norm, possibly scale.
+
+    _store_ has to behave like an np.array. Works __inplace__.
+    """
+    chunk, eps, C = pars[0], pars[1], pars[2]
+    
+    dset = new.create_dataset(name=key, shape=store[key].shape, dtype=store[key].dtype)
+
+    for i in xrange(0, store[key].shape[0], chunk):
+        norm = np.sqrt(np.sum(dset[i:i+chunk]**2, axis=1) + eps)
+        dset[i:i+chunk] /= np.atleast_2d(norm).T
+        dset[i:i+chunk] *= C
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['DivisiveC'] = C
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['DivisiveC'] = C
+
+
+def _row0(store, key, new, chunk=512):
+    """Subtract row-mean 
+    """
+    dset = new.create_dataset(name=key, shape=store[key].shape, dtype=store[key].dtype)
+
+    for i in xrange(0, store[key].shape[0], chunk):
+        means = np.mean(store[key][i:i+chunk], axis=1)
+        dset[i:i+chunk] = store[key][i:i+chunk] - np.atleast_2d(means).T
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
 
 
 def _resize(store, key, new, shape):
