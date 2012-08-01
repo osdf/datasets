@@ -343,7 +343,7 @@ def feat0_store(store, to_sub, chunk=512, cache=False):
 
 
 def gstd1_store(store, to_div, chunk=512, cache=False):
-    """A new store that is featurewise 0-mean.
+    """A new store that has global std = 1.
     """
     print "GStd1 store", store
     sfn = store.filename.split(".")[0]
