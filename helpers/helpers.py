@@ -104,15 +104,15 @@ def visualize(array, rsz, rows, xtiles=None, fill=0):
     return img.fromarray(tiling)
 
 
-def global_std(store, chunk):
+def global_std(store, chunk=512):
     """Compute global standard deviation.
     Assumes that data is zero mean (per feature).
     """
     N, d = store.shape
     std = 0
     for i in xrange(0, N, chunk):
-        std += ((store[i:i+chunk])**2).sum(axis=0)
-    return np.sqrt(std/(1.*N))
+        std += ((store[i:i+chunk])**2).sum()
+    return np.sqrt(std/(1.*N*d))
 
 
 def pca(data, covered=None, whiten=False, chunk=512, **schedule):
@@ -234,6 +234,13 @@ def simply_float(store):
     return float_store
 
 
+def binary_invert(store, new, chunk, exclude=[None]):
+    """
+    """
+    apply_to_store(store, new, _binary_inv, chunk, exclude=exclude)
+    return new
+
+
 def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=[None]):
     """Generate a new store _new_ from _store_ by
     'stationary' normalization of _store_.
@@ -276,7 +283,7 @@ def feat_mean(store, chunk=512):
     N, d = store.shape
     sm = 0
     for i in xrange(0, N, chunk):
-        sm += store[i:i+chunk][:].sum(axis=0)
+        sm += store[i:i+chunk].sum(axis=0)
     return sm/(1.*N)
 
 
@@ -294,6 +301,21 @@ def global_div(store, new, chunk, div, exclude=[None]):
     apply_to_store(store, new, _global_div, pars, exclude=exclude)
 
 
+def _binary_inv(store, key, new, chunk):
+    """
+    """
+    shape = store[key].shape
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = 1 - store[key][i:i+chunk]
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+
+
 def _feat_sub(store, key, new, pars):
     """Subtract featurewise.
     """
@@ -305,11 +327,11 @@ def _feat_sub(store, key, new, pars):
 
     for attrs in store[key].attrs:
         dset.attrs[attrs] = store[key].attrs[attrs]
-    dset.attrs['feature mean'] = sub.mean()
+    dset.attrs['feature mean'] = (sub.mean(), sub.std())
 
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
-    new.attrs['feature mean'] = sub.mean()
+    new.attrs['feature mean'] = (sub.mean(), sub.std())
 
 
 def _global_div(store, key, new, pars):
