@@ -82,5 +82,14 @@ def _create_grp(store, grp_name, path):
             pass
 
 
+def invert(store, chunk=512):
+    """1-pixelvalues.
+    """
+    print "Inverting ", store
+    inv = h5py.File("inverted_not-mnist_28x28.h5", 'w')
+    helpers.binary_invert(store, inv, chunk, exclude=["targets"])
+    return inv
+
+
 if __name__=="__main__":
     build_store()

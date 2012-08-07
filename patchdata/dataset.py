@@ -182,6 +182,7 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
         jt = _fill_up(store[d], train, indices=rt, pos=jt, chunk=chunk)
         jv = _fill_up(store[d], valid, indices=rv, pos=jv, chunk=chunk)
     select.attrs["Original"] = "from " + str(store.filename)
+    #helpers.shuffle(select)
     return select
 
 
@@ -271,7 +272,7 @@ def crop_store(store, x, y, dx, dy, cache=False):
     """A new store that contains cropped images from _store_.
     _x_, _y_, _dx_ and _dy_ are the cropping parameters.
     """
-    print "Cropping from store", store
+    print "Cropping from store", store, "with (x,y);(dx, dy)", x, y, dx, dy
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(x) + str(y) + str(dx) + str(dy))
 
@@ -287,12 +288,12 @@ def crop_store(store, x, y, dx, dy, cache=False):
     return crop
 
 
-def stationary_store(store, chunk=512, eps=1e-8, C=1., cache=False):
+def stationary_store(store, eps=1e-8, C=1., chunk=512, cache=False):
     """A new store that contains stationary images from _store_.
     """
-    print "Stationarize store", store
+    print "Stationarize store", store, "with eps, C" , eps, C
     sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(chunk) + str(eps) + str(C))
+    name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
     name = name.hexdigest()[:8] + ".stat.h5"
     if cache is True and exists(name):
         print "Using cached version ", name
@@ -303,6 +304,134 @@ def stationary_store(store, chunk=512, eps=1e-8, C=1., cache=False):
     helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C)
     stat.attrs["Stationary"] = "from " + str(store.filename)
     return stat
+
+
+def row0_store(store, chunk=512, cache=False):
+    """A new store that contains 0-mean images from _store_.
+    """
+    print "Row0 store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(chunk))
+    name = name.hexdigest()[:8] + ".row0.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    r0 = h5py.File(name, 'w')
+    helpers.row0(store, r0, chunk=chunk)
+    r0.attrs["Row0"] = "from " + str(store.filename)
+    return r0 
+
+
+def feat0_store(store, to_sub, chunk=512, cache=False):
+    """A new store that is featurewise 0-mean.
+    """
+    print "Feat0 store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(to_sub) + str("feat0_store") + str(chunk))
+    name = name.hexdigest()[:8] + ".feat0.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    f0 = h5py.File(name, 'w')
+    helpers.feat_sub(store, f0, chunk=chunk, sub=to_sub)
+    f0.attrs["Feat0"] = "from " + str(store.filename)
+    return f0 
+
+
+def gstd1_store(store, to_div, chunk=512, cache=False):
+    """A new store that has global std = 1.
+    """
+    print "GStd1 store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(to_div) + str("gstd1_store") + str(chunk))
+    name = name.hexdigest()[:8] + ".gstd1.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    std = h5py.File(name, 'w')
+    helpers.global_div(store, std, chunk=chunk, div=to_div)
+    std.attrs["GStd1"] = "from " + str(store.filename)
+    return std
+
+
+def resize_store(store, shape, cache=False):
+    """A new store that contains stationary images from _store_.
+    """
+    print "Resizing store", store, "to new shape", shape
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(shape))
+    name = name.hexdigest()[:8] + ".resz.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    rsz = h5py.File(name, 'w')
+    helpers.resize(store, rsz, shape)
+    rsz.attrs["Resized"] = "from " + str(store.filename)
+    return rsz
+
+
+def at_store(store, M, chunk=512, cache=False):
+    """
+    """
+    print "AT store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(M) + str(chunk))
+    name = name.hexdigest()[:8] + ".at.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    at = h5py.File(name, 'w')
+    helpers.at(store, at, M, chunk=chunk)
+    at.attrs["AT"] = "from " + str(store.filename)
+    return at
+
+
+def zeroone_store(store, chunk=512, cache=False):
+    """
+    """
+    print "Zeroone store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn+str(chunk))
+    name = name.hexdigest()[:8] + ".zo.h5"
+
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    zo = h5py.File(name, 'w')
+    helpers.zeroone(store, zo, chunk=chunk)
+    zo.attrs["ZO"] = "from " + str(store.filename)
+    return zo 
+
+
+def zeroone_group(store, chunk=512, group=["match", "non_match"], cache=False):
+    """
+    """
+    print "Zeroone Group", store, group
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn+str(chunk)+"zeroone_group"+str(group))
+    name = name.hexdigest()[:8] + ".zogrp.h5"
+
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    zo = h5py.File(name, 'w')
+    helpers.zeroone_group(store, zo, group=group, chunk=chunk)
+    zo.attrs["ZO_GRP"] = "from " + str(store.filename)
+    return zo 
 
 
 def _crop_to_numpy(patchfile, ravel=True):
