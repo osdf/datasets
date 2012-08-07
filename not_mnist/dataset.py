@@ -20,14 +20,15 @@ from helpers import helpers
 
 
 _default_path = dirname(__file__)
-_default_name = join(_default_path, "not-mnist_28x28.h5")
+_default_name = "not-mnist_28x28.h5"
 _test_path = "notMNIST_small"
 _train_path = "notMNIST_large"
 _labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 _shape = (28,28)
 
 
-def get_store(fname=_default_name):
+def get_store(fname=_default_name, path=_default_path):
+    fname = join(path, fname)
     print "Loading from store", fname
     return h5py.File(fname, 'r')
 
