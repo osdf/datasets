@@ -190,10 +190,9 @@ def apply_to_store(store, new, method, pars, exclude=[None]):
     keys into _exclude_ (i.e. pass in as list of strings).
     """
     for key in store.keys():
-        if key in exclude:
-            continue
-
         if type(store[key]) is h5py.Group:
+            if key in exclude:
+                continue
             grp = new.create_group(name=key)
             apply_to_store(store[key], grp, method, pars, exclude)
             for attrs in store.attrs.keys():
@@ -202,7 +201,26 @@ def apply_to_store(store, new, method, pars, exclude=[None]):
                 new.attrs[attrs] = grp.attrs[attrs]
 
         if type(store[key]) is h5py.Dataset:
-            method(store, key, new, pars)
+            if key in exclude:
+                clone_dataset(store, key, new)
+            else:
+                method(store, key, new, pars)
+
+
+def clone_dataset(store, key, new):
+    """
+    """
+    shape = store[key].shape
+    chunk = 512
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = store[key][i:i+chunk]
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
 
 
 def resize(store, new, shape, exclude=[None]):
@@ -252,7 +270,7 @@ def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=[None]):
 def row0(store, new, chunk=512, exclude=[None]):
     """Every row has mean 0.
     """
-    pars = None #dummy
+    pars = chunk
     apply_to_store(store, new, _row0, pars, exclude=exclude)
 
 
