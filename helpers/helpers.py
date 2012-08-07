@@ -64,12 +64,13 @@ def _scale_01(arr, eps=1e-10):
     return newarr
 
 
-def visualize(array, rsz, rows, xtiles=None, fill=0):
+def visualize(array, rsz, shape_r=None, xtiles=None, fill=0):
     """Visualize flattened bitmaps.
 
     _array_ is supposed to be a 1d array that
     holds the bitmaps (of size _rsz_ each)
-    sequentially. _rsz_ must be a square number.
+    sequentially. _rsz_ must be a square number
+    if _shape_r is None.
 
     Specifiy the number of rows with _xtiles_.
     If not specified, the layout is approximately
@@ -82,8 +83,9 @@ def visualize(array, rsz, rows, xtiles=None, fill=0):
     # tiles per axes
     xtiles = xtiles if xtiles else int(np.sqrt(sz/rsz))
     ytiles = int(np.ceil(sz/rsz/(1.*xtiles)))
-    shape_r = rows
-    shape_c = int(rsz/rows)
+    if shape_r is None:
+        shape_r = int(np.sqrt(rsz))
+    shape_c = int(rsz/shape_r)
     
     # take care of extra pixels for borders
     pixelsy = ytiles * shape_r + ytiles + 1
@@ -97,6 +99,31 @@ def visualize(array, rsz, rows, xtiles=None, fill=0):
                 tile = fields[col + row * xtiles].reshape(shape_r, shape_c)
                 tile = _scale_01(tile) * 255
                 tiling[shape_r * row + row + 1:shape_r * (row+1) + row + 1, shape_c * col + col + 1:shape_c * (col+1) + col + 1] = tile
+    return img.fromarray(tiling)
+
+
+def hinton(array, sqr_sz = 9):
+    """A hinton diagram without matplotlib.
+    From https://gist.github.com/292018
+    Code definetely has potential for improvement.
+
+    _array_ is the one to visualize. _sqr_sz_ is
+    the length of a square. Bigger -> more details.
+    """
+    dx, dy = array.shape
+    W = 2**np.ceil(np.log(np.abs(array).max())/np.log(2))
+    # take care of extra pixels for borders
+    pixelsy = dy * sqr_sz + dy + 1
+    pixelsx = dx * sqr_sz + dx + 1
+    tiling = 128*np.ones((pixelsx, pixelsy), dtype = 'uint8')
+    print pixelsx, pixelsy, W
+    for (x,y), w in np.ndenumerate(array):
+        xpos = x * sqr_sz + x + 1 + int(sqr_sz/2 + 1)
+        ypos = y * sqr_sz + y + 1 + int(sqr_sz/2 + 1)
+        dw = int(np.abs(w)/W * sqr_sz)/2 + 1
+        cw = (w > 0) * 255
+        print xpos, ypos, np.abs(w)/W * sqr_sz
+        tiling[xpos - dw:xpos + dw, ypos - dw:ypos+dw] = cw
     return img.fromarray(tiling)
 
 
