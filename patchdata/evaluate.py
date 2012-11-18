@@ -30,16 +30,26 @@ def l1_dist(v1, v2):
     return dist
 
 
+def chi_dist(v1, v2):
+    """Chi-squared histogramm distance.
+    """
+    t1 = (v1-v2)**2
+    t2 = v1 + v2
+    dist = 0.5 * np.sum(t1/t2)
+    return dist
+
+
 _dist_table = {
     "L2": l2_dist
     ,"L1": l1_dist
     ,"COSINE":cosine_dist
     ,"HAMMING": ham_dist
+    ,"CHI": chi_dist
 }
 
 
-_full_dist = ["L2", "L1", "COSINE", "HAMMING"]
-_cont_dist = ["L2", "L1", "COSINE"]
+_full_dist = ["L2", "L1", "COSINE", "HAMMING", "CHI"]
+_cont_dist = ["L2", "L1", "COSINE", "CHI"]
 
 
 def id(v):
