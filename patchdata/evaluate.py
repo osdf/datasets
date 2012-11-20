@@ -34,9 +34,9 @@ def chi_dist(v1, v2):
     """Chi-squared histogramm distance.
     """
     t1 = (v1-v2)**2
-    t2 = v1 + v2
+    t2 = v1 + v2 + 1e-6
     dist = 0.5 * np.sum(t1/t2)
-    return dist
+    return np.sqrt(dist)
 
 
 _dist_table = {
