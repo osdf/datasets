@@ -108,11 +108,12 @@ def visualize(array, rsz, shape_r=None, xtiles=None, fill=0):
 
 def hinton(array, sqr_sz = 9):
     """A hinton diagram without matplotlib.
-    From https://gist.github.com/292018
     Code definetely has potential for improvement.
 
     _array_ is the one to visualize. _sqr_sz_ is
     the length of a square. Bigger -> more details.
+
+    See https://gist.github.com/292018
     """
     dx, dy = array.shape
     W = 2**np.ceil(np.log(np.abs(array).max())/np.log(2))
@@ -120,13 +121,11 @@ def hinton(array, sqr_sz = 9):
     pixelsy = dy * sqr_sz + dy + 1
     pixelsx = dx * sqr_sz + dx + 1
     tiling = 128*np.ones((pixelsx, pixelsy), dtype = 'uint8')
-    print pixelsx, pixelsy, W
     for (x,y), w in np.ndenumerate(array):
         xpos = x * sqr_sz + x + 1 + int(sqr_sz/2 + 1)
         ypos = y * sqr_sz + y + 1 + int(sqr_sz/2 + 1)
         dw = int(np.abs(w)/W * sqr_sz)/2 + 1
         cw = (w > 0) * 255
-        print xpos, ypos, np.abs(w)/W * sqr_sz
         tiling[xpos - dw:xpos + dw, ypos - dw:ypos+dw] = cw
     return img.fromarray(tiling)
 
