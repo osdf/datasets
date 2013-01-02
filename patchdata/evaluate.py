@@ -39,12 +39,24 @@ def chi_dist(v1, v2):
     return np.sqrt(dist)
 
 
+def bin_breg(v1, v2):
+    """Bregman divergence for bernoulli variables.
+    yosemite with sqrt(sum()) much better than
+    notredame and liberty.
+    """
+    sumv = (v1+v2)/2.
+    t1 = v1*np.log((v1/(sumv+SMALL))+SMALL) + (1-v1)*np.log( (1-v1)/(1-sumv+SMALL)+SMALL)
+    t2 = v2*np.log(v2/(sumv+SMALL)+SMALL) + (1-v2)*np.log( (1-v2)/(1-sumv+SMALL)+SMALL)
+    return np.sqrt(np.abs(0.5*np.sum(t1) + 0.5*np.sum(t2)))
+
+
 _dist_table = {
     "L2": l2_dist
     ,"L1": l1_dist
     ,"COSINE":cosine_dist
     ,"HAMMING": ham_dist
     ,"CHI": chi_dist
+    ,"BREG": bin_breg
 }
 
 
@@ -74,17 +86,35 @@ def binary(v):
     """
     return v>0.5
 
+def sqrt(v):
+    """Sqrt-ing the vector.
+    Heuristic to make L2 distance
+    norm work _occasionally_ better.
+    """
+    return np.sqrt(v)
+
+#def binar(v, t=0.11):
+#"""'bin' und 'L1' produce good results, 48% for yosemite
+#    bv = 1*(v>t)
+#    return l2(bv)
+def binar(v, t=0.0075): #best setting for 81, trained on notredame (yose: 46%)
+    n = l2(v)
+    #n=v# good for 0.03!!
+    bv = 1*(n>t)
+    return bv
 
 _norm_table = {
     "id": id
     ,"l2": l2
     ,"l1": l1
     ,"01": binary
+    ,"sqrt": sqrt
+    ,"bin": binar
 }
 
 
-_full_norms = ["id", "l2", "l1", "01"]
-_cont_norms = ["id", "l2", "l1"]
+_full_norms = ["id", "l2", "l1", "01", "sqrt"]
+_cont_norms = ["id", "l2", "l1", "sqrt"]
 
 
 def roc(matches, non_matches):
@@ -136,13 +166,14 @@ def _nop(x):
 
 
 def evaluate(eval_set, distances=_cont_dist,
-        normalizations=_cont_norms, latent=_nop):
+        normalizations=_cont_norms, latent=_nop, verbose=True):
     """
     """
     print "Evaluate", eval_set.attrs['dataset']
-    for att in eval_set.attrs:
-        if att != "dataset":
-            print att, ":", eval_set.attrs[att]
+    if verbose:
+        for att in eval_set.attrs:
+            if att != "dataset":
+                    print att, ":", eval_set.attrs[att]
 
     rocs = dict()
 
@@ -154,22 +185,36 @@ def evaluate(eval_set, distances=_cont_dist,
         for dist, norm in product(distances, normalizations):
             if np.logical_xor(dist is "HAMMING", norm is "01"):
                 continue
-            m_dist = _histogram(matches, int(pairs), _dist_table[dist], _norm_table[norm])
-            nonm_dist = _histogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
+            m_dist = _dhistogram(matches, int(pairs), _dist_table[dist], _norm_table[norm])
+            nonm_dist = _dhistogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
             curve = roc(m_dist, nonm_dist)
             fp95 = fp_at_95(curve)
-            print pairs, dist, norm, fp95
+            
+            if verbose:
+                print pairs, dist, norm, fp95
+            
             roc_pair[(dist, norm)] = {"fp_at_95": fp95, "roc": curve, 
                     "m_dist": m_dist, "nonm_dist": nonm_dist}
         rocs[pairs] = roc_pair
     return rocs
 
 
-def _histogram(dataset, pairs, dist, norm):
+def _dhistogram(dataset, pairs, dist, norm):
     """Compute distance histogram.
     """
     hist = []
     for i in xrange(pairs):
         v1, v2 = dataset[2*i], dataset[2*i+1]
         hist.append(dist(norm(v1), norm(v2)))
+    return hist
+
+
+def _ahistogram(dataset, latent, norm='id'):
+    """Build activation histogram.
+    """
+    hist = []
+    for m in dataset:
+        for inpt in dataset[m]:
+            x = latent(inpt.reshape(1, -1))
+            hist.extend(_norm_table[norm](x).ravel())
     return hist
