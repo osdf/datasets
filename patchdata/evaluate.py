@@ -39,10 +39,9 @@ def chi_dist(v1, v2):
     return np.sqrt(dist)
 
 
-def bin_breg(v1, v2):
-    """Bregman divergence for bernoulli variables.
-    yosemite with sqrt(sum()) much better than
-    notredame and liberty.
+def jsd(v1, v2):
+    """
+    Jensen Shannon divergence.
     """
     sumv = (v1+v2)/2.
     t1 = v1*np.log((v1/(sumv+SMALL))+SMALL) + (1-v1)*np.log( (1-v1)/(1-sumv+SMALL)+SMALL)
@@ -56,12 +55,12 @@ _dist_table = {
     ,"COSINE":cosine_dist
     ,"HAMMING": ham_dist
     ,"CHI": chi_dist
-    ,"BREG": bin_breg
+    ,"JSD": jsd
 }
 
 
-_full_dist = ["L2", "L1", "COSINE", "HAMMING", "CHI"]
-_cont_dist = ["L2", "L1", "COSINE", "CHI"]
+_full_dist = ["L2", "L1", "COSINE", "HAMMING", "JSD"]
+_cont_dist = ["L2", "L1", "JSD"]
 
 
 def id(v):
@@ -97,11 +96,17 @@ def sqrt(v):
 #"""'bin' und 'L1' produce good results, 48% for yosemite
 #    bv = 1*(v>t)
 #    return l2(bv)
-def binar(v, t=0.0075): #best setting for 81, trained on notredame (yose: 46%)
-    n = l2(v)
-    #n=v# good for 0.03!!
-    bv = 1*(n>t)
-    return bv
+#    check for 0.0045 again!
+#def binar(v, t=0.00544): #best setting for 81, trained on notredame (yose: 46%)
+#    #n = l2(v)
+#    n=v# good for 0.03!!
+#    #if v.shape[0] == 64:
+#    #    t = np.array([0.017, 0.08, 0.218, 0.219, 0.117, 0.137, 0.042, 0.0021, 0.090, 0.178, 0.196, 0.0618, 0.0389, 0.0196, 0.0058, 0.090, 0.0128, 0.091, 0.155, 0.088, 0.0517, 0.0119, 0.123, 0.129, 0.0361, 0.0126, 0.081, 0.229, 0.0449, 0.110, 0.072, 0.129, 0.163, 0.037, 0.0434, 0.028, 0.051, 0.0489, 0.0016, 0.0616, 0.0927, 0.021, 0.1, 0.065, 0.0781, 0.1688, 0.0146, 0.0159, 0.198, 0.026, 0.0052, 0.0277, 0.0074, 0.0115, 0.051, 0.00248, 0.038, 0.081, 0.0026, 0.1124, 0.0965, 0.0933, 0.019, 0.0107])/10
+#    bv = 1*(n>t)
+#    return bv
+def binarize(v, thresh, **kwargs):
+    return 1*(v>thresh)
+
 
 _norm_table = {
     "id": id
@@ -109,7 +114,7 @@ _norm_table = {
     ,"l1": l1
     ,"01": binary
     ,"sqrt": sqrt
-    ,"bin": binar
+    ,"bin": binarize
 }
 
 
