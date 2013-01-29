@@ -167,7 +167,7 @@ def pca(data, covered=None, whiten=False, chunk=512, **schedule):
     return comp, s
 
 
-def zca(data, eps=1e-2, chunk=512, **schedule):
+def zca(data, eps=1e-5, chunk=512, **schedule):
     """
     Compute ZCA.
     """
