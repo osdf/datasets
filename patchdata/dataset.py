@@ -70,7 +70,7 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
     print "Wrote", dataset, "to", fname, f
 
 
-def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path):
+def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path, tag=None):
     """Put matching/non-matching pairs into a hdf5.
 
     There is one hdf5 per dataset, with the available number of pairs 
@@ -88,7 +88,11 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path)
     range.
     """
     for ds in dataset:
-        fname = "".join(["evaluate_", ds, "_", "64x64.h5"])
+        if tag is None:
+            tag = ""
+        else:
+            tag = "".join([tag, "_"])
+        fname = "".join([tag, "evaluate_", ds, "_", "64x64.h5"])
         print "\nBuilding evaluate store", fname, "for", pair_list
         f = h5py.File(join(path, fname), "w")
         for pairs in pair_list:
