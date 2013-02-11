@@ -63,29 +63,29 @@ _full_dist = ["L2", "L1", "COSINE", "HAMMING", "JSD"]
 _cont_dist = ["L2", "L1", "JSD"]
 
 
-def id(v):
+def id(v, **kwargs):
     """v1 is not normalized."""
     return v
 
 
-def l2(v):
+def l2(v, **kwargs):
     """v is l2 normalized."""
     return v/np.sqrt(np.sum(v**2) + SMALL)
 
 
-def l1(v):
+def l1(v, **kwargs):
     """v is l1 normalized."""
     return v/(np.sum(np.abs(v)) + SMALL)
 
 
-def binary(v):
+def binary(v, **kwargs):
     """Binarize v.
 
     Assumes that v is [0,1]^n
     """
     return v>0.5
 
-def sqrt(v):
+def sqrt(v, **kwargs):
     """Sqrt-ing the vector.
     Heuristic to make L2 distance
     norm work _occasionally_ better.
@@ -171,7 +171,7 @@ def _nop(x):
 
 
 def evaluate(eval_set, distances=_cont_dist,
-        normalizations=_cont_norms, latent=_nop, verbose=True):
+        normalizations=_cont_norms, latent=_nop, verbose=True, **kwargs):
     """
     """
     print "Evaluate", eval_set.attrs['dataset']
@@ -190,8 +190,8 @@ def evaluate(eval_set, distances=_cont_dist,
         for dist, norm in product(distances, normalizations):
             if np.logical_xor(dist is "HAMMING", norm is "01"):
                 continue
-            m_dist = _dhistogram(matches, int(pairs), _dist_table[dist], _norm_table[norm])
-            nonm_dist = _dhistogram(non_matches, int(pairs), _dist_table[dist], _norm_table[norm])
+            m_dist = _dhistogram(dataset=matches, pairs=int(pairs), dist=_dist_table[dist], norm=_norm_table[norm], **kwargs)
+            nonm_dist = _dhistogram(dataset=non_matches, pairs=int(pairs), dist=_dist_table[dist], norm=_norm_table[norm], **kwargs)
             curve = roc(m_dist, nonm_dist)
             fp95 = fp_at_95(curve)
             
@@ -204,13 +204,13 @@ def evaluate(eval_set, distances=_cont_dist,
     return rocs
 
 
-def _dhistogram(dataset, pairs, dist, norm):
+def _dhistogram(dataset, pairs, dist, norm, **kwargs):
     """Compute distance histogram.
     """
     hist = []
     for i in xrange(pairs):
         v1, v2 = dataset[2*i], dataset[2*i+1]
-        hist.append(dist(norm(v1), norm(v2)))
+        hist.append(dist(norm(v1, **kwargs), norm(v2, **kwargs)))
     return hist
 
 
