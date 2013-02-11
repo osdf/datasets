@@ -87,11 +87,11 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path,
     For this reason, reconsider when 'extending' pair_list into the 100.000
     range.
     """
+    if tag is None:
+        tag = ""
+    else:
+        tag = "".join([tag, "_"])
     for ds in dataset:
-        if tag is None:
-            tag = ""
-        else:
-            tag = "".join([tag, "_"])
         fname = "".join([tag, "evaluate_", ds, "_", "64x64.h5"])
         print "\nBuilding evaluate store", fname, "for", pair_list
         f = h5py.File(join(path, fname), "w")
@@ -272,6 +272,40 @@ def summarize(dataset):
     return summary
 
 
+def unpair_store(store, grp, tag="match", cache=False):
+    """
+    Given a store with match/nonmatch pairs, extract the members 
+    of the pairs from _grp_|tag as two seperat stores.
+    """
+    print "Unpairing store", store, ", group ", grp, tag
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(grp))
+
+    name1 = name.hexdigest()[:8] + "." + tag + ".ins.h5"
+    name2 = name.hexdigest()[:8] + "." + tag + ".outs.h5"
+    if cache is True and exists(name1) and exists(name2):
+        print "Using cached version ", name1, name2
+        return h5py.File(name1, 'r+'), h5py.File(name2, 'r+')
+
+    print "No cache, writing to", name1, name2
+    p1 = h5py.File(name1, 'w')
+    p2 = h5py.File(name2, 'w')
+
+    p1.attrs["Unpaired"] = "from " + tag + " " + str(store.filename)
+    p2.attrs["Unpaired"] = "from " + tag + " " + str(store.filename)
+
+    group = store[grp][tag]
+    n, d = group.shape
+    n = n/2
+    p1g = p1.create_dataset(name="left", shape=(n, d), dtype=group.dtype)
+    p2g = p2.create_dataset(name="right", shape=(n, d), dtype=group.dtype)
+
+    for j in xrange(n):
+        p1g[j] = group[2*j]
+        p2g[j] = group[2*j + 1]
+    return p1, p2
+
+
 def crop_store(store, x, y, dx, dy, cache=False):
     """A new store that contains cropped images from _store_.
     _x_, _y_, _dx_ and _dy_ are the cropping parameters.
@@ -419,7 +453,7 @@ def zeroone_store(store, chunk=512, cache=False):
     return zo 
 
 
-def zeroone_group(store, chunk=512, group=["match", "non_match"], cache=False):
+def zeroone_group(store, chunk=512, group=["match", "non-match"], cache=False):
     """
     """
     print "Zeroone Group", store, group
