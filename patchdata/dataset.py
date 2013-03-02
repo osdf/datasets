@@ -326,10 +326,10 @@ def crop_store(store, x, y, dx, dy, cache=False):
     return crop
 
 
-def stationary_store(store, eps=1e-8, C=1., chunk=512, cache=False):
+def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False):
     """A new store that contains stationary images from _store_.
     """
-    print "Stationarize store", store, "with eps, C" , eps, C
+    print "Stationarize store", store, "with eps, C, div" , eps, C, div
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
     name = name.hexdigest()[:8] + ".stat.h5"
@@ -339,7 +339,7 @@ def stationary_store(store, eps=1e-8, C=1., chunk=512, cache=False):
 
     print "No cache, writing to", name
     stat = h5py.File(name, 'w')
-    helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C)
+    helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C, div=div)
     stat.attrs["Stationary"] = "from " + str(store.filename)
     return stat
 
@@ -378,6 +378,25 @@ def feat0_store(store, to_sub, chunk=512, cache=False):
     helpers.feat_sub(store, f0, chunk=chunk, sub=to_sub)
     f0.attrs["Feat0"] = "from " + str(store.filename)
     return f0 
+
+
+def feat_std1_store(store, to_div, chunk=512, cache=False):
+    """
+    New store has standard deviation 1 per feature.
+    """
+    print "Feat_std1 store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(to_div) + str("feat_std1_store") + str(chunk))
+    name = name.hexdigest()[:8] + ".feat_std1.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    fstd1 = h5py.File(name, 'w')
+    helpers.feat_div(store, fstd1, chunk=chunk, div=to_div)
+    fstd1.attrs["Feat_std1"] = "from " + str(store.filename)
+    return fstd1
 
 
 def gstd1_store(store, to_div, chunk=512, cache=False):

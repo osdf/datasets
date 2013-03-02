@@ -285,11 +285,11 @@ def binary_invert(store, new, chunk, exclude=[None]):
     return new
 
 
-def stationary(store, new, chunk=512, eps=1e-8, C=1., exclude=[None]):
+def stationary(store, new, chunk=512, eps=1e-8, C=1., div=1., exclude=[None]):
     """Generate a new store _new_ from _store_ by
     'stationary' normalization of _store_.
     """
-    pars = (chunk, eps, C)
+    pars = (chunk, eps, C, div)
     apply_to_store(store, new, _stationary, pars, exclude=exclude)
 
 
@@ -331,11 +331,30 @@ def feat_mean(store, chunk=512):
     return sm/(1.*N)
 
 
+def feat_std(store, chunk=512):
+    """
+    Standard deviation of features (columns).
+    Assumes that features have mean 0.
+    """
+    N, d = store.shape
+    cdiv = 0.
+    for i in xrange(0, N, chunk):
+        cdiv += (store[i:i+chunk]**2).sum(axis=0)
+    return np.sqrt(cdiv/(1.*N))
+
+
 def feat_sub(store, new, chunk, sub, exclude=[None]):
     """
     """
     pars = (chunk, sub)
     apply_to_store(store, new, _feat_sub, pars, exclude=exclude)
+
+
+def feat_div(store, new, chunk, div, exclude=[None]):
+    """
+    """
+    pars = (chunk, div)
+    apply_to_store(store, new, _feat_div, pars, exclude=exclude)
 
 
 def global_div(store, new, chunk, div, exclude=[None]):
@@ -377,6 +396,22 @@ def _feat_sub(store, key, new, pars):
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['feature mean'] = (sub.mean(), sub.std())
 
+def _feat_div(store, key, new, pars):
+    """Divide featurewise.
+    """
+    chunk, div = pars[0], pars[1]
+    shape = store[key].shape
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = store[key][i:i+chunk]/div.T
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['feature std'] = (div.mean(), div.std())
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['feature std'] = (div.mean(), div.std())
 
 def _global_div(store, key, new, pars):
     """
@@ -486,14 +521,14 @@ def _stationary(store, key, new, pars):
 
     _store_ has to be an np.array. Works __inplace__.
     """
-    chunk, eps, C = pars[0], pars[1], pars[2]
+    chunk, eps, C, div = pars[0], pars[1], pars[2], pars[3]
     
     dset = new.create_dataset(name=key, shape=store[key].shape, dtype=store[key].dtype)
 
     for i in xrange(0, store[key].shape[0], chunk):
         means = np.mean(store[key][i:i+chunk], axis=1)
         dset[i:i+chunk] = store[key][i:i+chunk] - np.atleast_2d(means).T
-        norm = np.sqrt(np.sum(dset[i:i+chunk]**2, axis=1) + eps)
+        norm = np.sqrt(np.sum(dset[i:i+chunk]**2, axis=1)/div + eps)
         dset[i:i+chunk] /= np.atleast_2d(norm).T
         dset[i:i+chunk] *= C
 
