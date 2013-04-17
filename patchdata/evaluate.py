@@ -11,7 +11,7 @@ def cosine_dist(v1, v2):
     """Cosine similarity between two vectors, v1 and v2."""
     n1 = np.sqrt(np.sum(v1**2) + SMALL)
     n2 = np.sqrt(np.sum(v2**2) + SMALL)
-    return 1 - np.dot(v1, v2)/(n1*n2)
+    return 1 - (np.dot(v1, v2)/(n1*n2))
 
 
 def l2_dist(v1, v2):
@@ -107,6 +107,8 @@ def sqrt(v, **kwargs):
 def binarize(v, thresh, **kwargs):
     return 1*(v>thresh)
 
+def m1(v, **kwargs):
+    return 1-v
 
 _norm_table = {
     "id": id
@@ -115,6 +117,7 @@ _norm_table = {
     ,"01": binary
     ,"sqrt": sqrt
     ,"bin": binarize
+    ,"m1": m1
 }
 
 
@@ -146,10 +149,10 @@ def roc(matches, non_matches):
     ## between median, q3 and max distance
     #thresholds = list(np.linspace(q3, mx, 200))
     ## summary: list of tuples, threshold and (tp,fp) pair.
-    curve = [{"true_positive": 0.95, "false_positive": np.sum(non_matches < dist_at_95)/total_fp, "threshold": dist_at_95}]
+    curve = [{"true_positive": 0.95, "false_positive": np.sum(non_matches <= dist_at_95)/total_fp, "threshold": dist_at_95}]
     for thresh in thresholds:
-        tp = np.sum(matches < thresh)/total_tp
-        fp = np.sum(non_matches < thresh)/total_fp
+        tp = np.sum(matches <= thresh)/total_tp
+        fp = np.sum(non_matches <= thresh)/total_fp
         curve.append({"true_positive":tp, "false_positive":fp, "threshold": thresh})
     return curve
 
@@ -188,7 +191,7 @@ def evaluate(eval_set, distances=_cont_dist,
         matches = latent(dset["match"])
         non_matches = latent(dset["non-match"])
         for dist, norm in product(distances, normalizations):
-            if np.logical_xor(dist is "HAMMING", norm is "01"):
+            if np.logical_xor(dist is "HAMMING", norm is "01") or np.logical_xor(dist is "HAMMING", norm is "bin"):
                 continue
             m_dist = _dhistogram(dataset=matches, pairs=int(pairs), dist=_dist_table[dist], norm=_norm_table[norm], **kwargs)
             nonm_dist = _dhistogram(dataset=non_matches, pairs=int(pairs), dist=_dist_table[dist], norm=_norm_table[norm], **kwargs)

@@ -326,7 +326,7 @@ def crop_store(store, x, y, dx, dy, cache=False):
     return crop
 
 
-def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False):
+def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None]):
     """A new store that contains stationary images from _store_.
     """
     print "Stationarize store", store, "with eps, C, div" , eps, C, div
@@ -339,9 +339,29 @@ def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False):
 
     print "No cache, writing to", name
     stat = h5py.File(name, 'w')
-    helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C, div=div)
+    helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C, div=div, exclude=exclude)
     stat.attrs["Stationary"] = "from " + str(store.filename)
     return stat
+
+
+def fuse_store(store, key, groups=["match", "non-match"], labels=[1,0], stride=2, cache=False):
+    """
+    A new store that fuses images from 'match'/'non-match' parts
+    into one main store.
+    """
+    print "Fuse store", store, ", key", str(key)
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(groups) + str(stride))
+    name = name.hexdigest()[:8] + ".fuse.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    fuse = h5py.File(name, 'w')
+    helpers.fuse(store[key], fuse, groups=groups, labels=labels, stride=stride)
+    fuse.attrs["Fused"] = "from " + str(store.filename) + ", " + str(groups)
+    return fuse
 
 
 def row0_store(store, chunk=512, cache=False):
@@ -418,7 +438,7 @@ def gstd1_store(store, to_div, chunk=512, cache=False):
 
 
 def resize_store(store, shape, cache=False):
-    """A new store that contains stationary images from _store_.
+    """A new store that contains resized images from _store_.
     """
     print "Resizing store", store, "to new shape", shape
     sfn = store.filename.split(".")[0]

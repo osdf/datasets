@@ -343,6 +343,27 @@ def feat_std(store, chunk=512):
     return np.sqrt(cdiv/(1.*N))
 
 
+def fuse(store, new, groups, labels, stride=2, exclude=[None]):
+    """
+    Fuse all members in groups into one store _new_.
+    Assumes that all groups have the same size!
+    """
+    assert len(groups) == len(labels)
+
+    # Can not use apply_to_store because it works per subgroup
+    n, d = store[groups[0]].shape
+    k = len(groups)
+    newg = new.create_group("train")
+    inputs = newg.create_dataset(name="inputs", shape=(k*n, d), dtype=store[groups[0]].dtype)
+    targets = newg.create_dataset(name="targets", shape=(k*n,), dtype=np.int)
+
+    for i in xrange(n/stride):
+        base = k*stride*i
+        for j, g in enumerate(groups):
+            inputs[base+j*stride:base+(j+1)*stride, :] = store[g][stride*i:stride*(i+1),:]
+            targets[base+j*stride:base+(j+1)*stride] = labels[j]
+
+
 def feat_sub(store, new, chunk, sub, exclude=[None]):
     """
     """
@@ -396,6 +417,7 @@ def _feat_sub(store, key, new, pars):
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['feature mean'] = (sub.mean(), sub.std())
 
+
 def _feat_div(store, key, new, pars):
     """Divide featurewise.
     """
@@ -413,6 +435,7 @@ def _feat_div(store, key, new, pars):
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['feature std'] = (div.mean(), div.std())
 
+
 def _global_div(store, key, new, pars):
     """
     """
@@ -429,7 +452,6 @@ def _global_div(store, key, new, pars):
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['DIV'] = div
-
 
 
 def _zeroone(store, key, new, pars):
