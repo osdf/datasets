@@ -297,8 +297,8 @@ def unpair_store(store, grp, tag="match", cache=False):
     group = store[grp][tag]
     n, d = group.shape
     n = n/2
-    p1g = p1.create_dataset(name="left", shape=(n, d), dtype=group.dtype)
-    p2g = p2.create_dataset(name="right", shape=(n, d), dtype=group.dtype)
+    p1g = p1.create_dataset(name="inputs", shape=(n, d), dtype=group.dtype)
+    p2g = p2.create_dataset(name="inputs", shape=(n, d), dtype=group.dtype)
 
     for j in xrange(n):
         p1g[j] = group[2*j]
