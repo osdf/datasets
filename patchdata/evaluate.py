@@ -118,8 +118,12 @@ def sqrt(v, **kwargs):
 #    #    t = np.array([0.017, 0.08, 0.218, 0.219, 0.117, 0.137, 0.042, 0.0021, 0.090, 0.178, 0.196, 0.0618, 0.0389, 0.0196, 0.0058, 0.090, 0.0128, 0.091, 0.155, 0.088, 0.0517, 0.0119, 0.123, 0.129, 0.0361, 0.0126, 0.081, 0.229, 0.0449, 0.110, 0.072, 0.129, 0.163, 0.037, 0.0434, 0.028, 0.051, 0.0489, 0.0016, 0.0616, 0.0927, 0.021, 0.1, 0.065, 0.0781, 0.1688, 0.0146, 0.0159, 0.198, 0.026, 0.0052, 0.0277, 0.0074, 0.0115, 0.051, 0.00248, 0.038, 0.081, 0.0026, 0.1124, 0.0965, 0.0933, 0.019, 0.0107])/10
 #    bv = 1*(n>t)
 #    return bv
-def binarize(v, thresh=0., **kwargs):
-    return 1*(v>thresh)
+def binarize(v, thresh, idx=None, **kwargs):
+    if idx is None:
+        _v = v
+    else:
+        _v = v[idx]
+    return 1*(_v>thresh)
 
 def m1(v, **kwargs):
     return 1-v
@@ -206,10 +210,6 @@ def evaluate(eval_set, distances=_cont_dist,
         matches = latent(dset["match"])
         non_matches = latent(dset["non-match"])
         for dist, norm in product(distances, normalizations):
-            #if dist == "HAMMING":
-            #    if (norm != "01") or (norm != "bin"):
-            #        print norm
-            #        continue
             m_dist = _dhistogram(dataset=matches, pairs=int(pairs), dist=_dist_table[dist], norm=_norm_table[norm], **kwargs)
             nonm_dist = _dhistogram(dataset=non_matches, pairs=int(pairs), dist=_dist_table[dist], norm=_norm_table[norm], **kwargs)
             curve = roc(m_dist, nonm_dist)
