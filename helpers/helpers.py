@@ -307,6 +307,13 @@ def at(store, new, M, chunk=512, exclude=[None]):
     apply_to_store(store, new, _at, pars, exclude=exclude)
 
 
+def fward(store, new, fward, D, chunk=512, exclude=[None]):
+    """Affine Transformation
+    """
+    pars = (chunk, fward, D)
+    apply_to_store(store, new, _fward, pars, exclude=exclude)
+
+
 def zeroone(store, new, chunk=512, exclude=[None]):
     """0/1 normalization
     """
@@ -362,6 +369,24 @@ def fuse(store, new, groups, labels, stride=2, exclude=[None]):
         for j, g in enumerate(groups):
             inputs[base+j*stride:base+(j+1)*stride, :] = store[g][stride*i:stride*(i+1),:]
             targets[base+j*stride:base+(j+1)*stride] = labels[j]
+
+
+def merge(store1, store2, new, stride=4, exclude=[None]):
+    """
+    """
+    for key in store1.keys():
+        if key in store2:
+            if type(store1[key]) is h5py.Group:
+                if key in exclude:
+                    continue
+                grp = new.create_group(name=key)
+                merge(store1[key], store2[key], grp, stride, exclude)
+
+            if type(store1[key]) is h5py.Dataset:
+                if key in exclude:
+                    continue
+                else:
+                    _mergeds(store1[key], store2[key], new, key, stride)
 
 
 def feat_sub(store, new, chunk, sub, exclude=[None]):
@@ -536,6 +561,49 @@ def _at(store, key, new, pars):
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['Affine shape'] = M.shape[1]
+
+
+def _fward(store, key, new, pars):
+    """Apply fward function to 
+    _store[key]_ members and build dataset in _new_.
+    """
+    chunk, fward, D = pars[0], pars[1], pars[2]
+    n, _ = store[key].shape
+    shape = (n, D)
+    dset = new.create_dataset(name=key, shape=shape, dtype=store[key].dtype)
+
+    for i in xrange(0, n, chunk):
+        dset[i:i+chunk] = fward(store[key][i:i+chunk])
+ 
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['fward'] = str(fward)
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['fward'] = str(fward)
+
+
+def _mergeds(store1, store2, new, name, stride):
+    """
+    """
+    s1shape = store1.shape
+    s2shape = store2.shape
+    if len(s1shape) > 1:
+        n1, d1 = s1shape
+        n2, d2 = s2shape
+        assert d1==d2 and n1==n2
+        ds = new.create_dataset(name=name, shape=(n1+n2, d1), dtype=store1.dtype)
+    else:
+        n1 = s1shape[0]
+        n2 = s2shape[0]
+        ds = new.create_dataset(name=name, shape=(n1+n2,), dtype=store1.dtype)
+
+    for i in xrange(n1/stride):
+        base_stores = i*stride
+        base = i*2*stride
+        ds[base:base+stride] = store1[base_stores:base_stores+stride]
+        ds[base+stride:base+2*stride] = store2[base_stores:base_stores+stride]
 
 
 def _stationary(store, key, new, pars):

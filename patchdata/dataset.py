@@ -44,8 +44,9 @@ _default_path = dirname(__file__)
 _default_pairings = (500, 1000, 2500, 5000, 10000, 25000)
 
 
-def get_store(fname="patchdata_64x64.h5", path=_default_path):
-    print "Loading from store", fname
+def get_store(fname="patchdata_64x64.h5", path=_default_path, verbose=True):
+    if verbose:
+        print "Loading from store", fname
     return h5py.File(join(path, fname), 'r')
 
 
@@ -306,17 +307,19 @@ def unpair_store(store, grp, tag="match", cache=False):
     return p1, p2
 
 
-def crop_store(store, x, y, dx, dy, cache=False):
+def crop_store(store, x, y, dx, dy, cache=False, verbose=True):
     """A new store that contains cropped images from _store_.
     _x_, _y_, _dx_ and _dy_ are the cropping parameters.
     """
-    print "Cropping from store", store, "with (x,y);(dx, dy)", x, y, dx, dy
+    if verbose:
+        print "Cropping from store", store, "with (x,y);(dx, dy)", x, y, dx, dy
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(x) + str(y) + str(dx) + str(dy))
 
     name = name.hexdigest()[:8] + ".crop.h5"
     if cache is True and exists(name):
-        print "Using cached version ", name
+        if verbose:
+            print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     print "No cache, writing to", name
@@ -326,10 +329,11 @@ def crop_store(store, x, y, dx, dy, cache=False):
     return crop
 
 
-def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None]):
+def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
     """A new store that contains stationary images from _store_.
     """
-    print "Stationarize store", store, "with eps, C, div" , eps, C, div
+    if verbose:
+        print "Stationarize store", store, "with eps, C, div" , eps, C, div
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
     name = name.hexdigest()[:8] + ".stat.h5"
@@ -364,15 +368,38 @@ def fuse_store(store, key, groups=["match", "non-match"], labels=[1,0], stride=2
     return fuse
 
 
-def row0_store(store, chunk=512, cache=False):
+def merge_store(store1, store2, stride=4, cache=False):
+    """
+    A new store that merges images from store1 and store2
+    into one main store.
+    """
+    print "Merge stores", store1, store2
+    sfn1 = store1.filename.split(".")[0]
+    sfn2 = store2.filename.split(".")[0]
+    name = hashlib.sha1(sfn1 + sfn2 + str(stride))
+    name = name.hexdigest()[:8] + ".merge.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    merge = h5py.File(name, 'w')
+    helpers.merge(store1, store2, merge, stride=stride)
+    merge.attrs["Merged"] = "from " + sfn1 + ", " + sfn2
+    return merge
+
+
+def row0_store(store, chunk=512, cache=False, verbose=True):
     """A new store that contains 0-mean images from _store_.
     """
-    print "Row0 store", store
+    if verbose:
+        print "Row0 store", store
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(chunk))
     name = name.hexdigest()[:8] + ".row0.h5"
     if cache is True and exists(name):
-        print "Using cached version ", name
+        if verbose:
+            print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     print "No cache, writing to", name
@@ -419,15 +446,16 @@ def feat_std1_store(store, to_div, chunk=512, cache=False):
     return fstd1
 
 
-def gstd1_store(store, to_div, chunk=512, cache=False):
+def gstd1_store(store, to_div, chunk=512, cache=False, verbose=True):
     """A new store that has global std = 1.
     """
-    print "GStd1 store", store
+    if verbose:
+        print "GStd1 store", store
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(to_div) + str("gstd1_store") + str(chunk))
     name = name.hexdigest()[:8] + ".gstd1.h5"
     if cache is True and exists(name):
-        print "Using cached version ", name
+        if verbose: print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     print "No cache, writing to", name
@@ -437,15 +465,16 @@ def gstd1_store(store, to_div, chunk=512, cache=False):
     return std
 
 
-def resize_store(store, shape, cache=False):
+def resize_store(store, shape, cache=False, verbose=True):
     """A new store that contains resized images from _store_.
     """
-    print "Resizing store", store, "to new shape", shape
+    if verbose:
+        print "Resizing store", store, "to new shape", shape
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(shape))
     name = name.hexdigest()[:8] + ".resz.h5"
     if cache is True and exists(name):
-        print "Using cached version ", name
+        if verbose: print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     print "No cache, writing to", name
@@ -454,16 +483,36 @@ def resize_store(store, shape, cache=False):
     rsz.attrs["Resized"] = "from " + str(store.filename)
     return rsz
 
+def fward_store(store, fward, D, chunk=512, cache=False, verbose=True):
+    """
+    """
+    if verbose:
+        print "fward store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(fward) + str(chunk))
+    name = name.hexdigest()[:8] + ".fw.h5"
+    if cache is True and exists(name):
+        if verbose:
+            print "Using cached version ", name
+        return h5py.File(name, 'r+')
 
-def at_store(store, M, chunk=512, cache=False):
+    print "No cache, writing to", name
+    fw = h5py.File(name, 'w')
+    helpers.fward(store, fw, fward, D, chunk=chunk)
+    fw.attrs["FWARD"] = "from " + str(store.filename) + " " + str(fward)
+    return fw
+
+
+def at_store(store, M, chunk=512, cache=False, verbose=True):
     """
     """
-    print "AT store", store
+    if verbose:
+        print "AT store", store
     sfn = store.filename.split(".")[0]
     name = hashlib.sha1(sfn + str(M) + str(chunk))
     name = name.hexdigest()[:8] + ".at.h5"
     if cache is True and exists(name):
-        print "Using cached version ", name
+        if verbose: print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     print "No cache, writing to", name
@@ -577,6 +626,61 @@ def _build_pairing_store(group, name, pairings, store):
 def _patches_from_pair(pair, store):
     return store[pair[0],:], store[pair[1],:]
 
+
+def perturb_patches(patches, newshape, box, nop=False):
+    """
+    Generate random perturbations. Assume that patches
+    come in pairs.
+    """
+    n, d = patches.shape
+    dx = int(np.sqrt(d))
+    tmp = patches.reshape((n, dx, dx))
+    result = np.zeros((n, newshape[0]*newshape[1]))
+    box1 = box
+    box2 = box
+    for j in xrange(n/2):
+        p1 = img.fromarray(tmp[2*j])
+        p2 = img.fromarray(tmp[2*j + 1])
+        
+        if nop:
+            result[2*j, :] = np.asarray(p1.crop(box)).ravel()
+            result[2*j+1,:] = np.asarray(p2.crop(box)).ravel()
+            continue
+
+        rnd = np.random.rand()
+        if rnd < 0.25:
+            pass
+        elif rnd < 0.5:
+            # flip
+            rnd1 = np.random.randn()
+            if rnd1 < 0.33:
+                flip = img.ROTATE_90
+            elif rnd1 < 0.66:
+                flip = img.ROTATE_180
+            else:
+                flip = img.ROTATE_270
+            p1 = p1.transpose(flip)
+            p2 = p2.transpose(flip)
+        elif rnd < 0.75:
+            rnd = np.random.randn() - 0.5
+            p1 = p1.rotate(10*rnd, resample=img.BICUBIC, expand=False)
+            rnd = np.random.randn() - 0.5
+            p2 = p2.rotate(10*rnd, resample=img.BICUBIC, expand=False)
+        else:
+            diffx = np.random.random_integers(-2, 2)
+            diffy = np.random.random_integers(-2, 2)
+            box1 = (box1[0] + diffx, box1[1] + diffy, box1[2] + diffx, box1[3] + diffy)
+            diffx = np.random.random_integers(-2, 2)
+            diffy = np.random.random_integers(-2, 2)
+            box2 = (box2[0] + diffx, box2[1] + diffy, box2[2] + diffx, box2[3] + diffy)
+        result[2*j, :] = np.asarray(p1.crop(box)).ravel()
+        result[2*j+1,:] = np.asarray(p2.crop(box)).ravel()
+
+    means = np.mean(result, axis=1)
+    result -= np.atleast_2d(means).T
+    norm = np.sqrt(np.sum(result**2, axis=1) + 1e-8)
+    result /= np.atleast_2d(norm).T
+    return result
 
 if __name__=="__main__":
     build_store()
