@@ -265,17 +265,14 @@ def crop(store, new, x, y, dx, dy, exclude=[None]):
     return new
 
 
-def simply_float(store):
+def simply_float(store, new, chunk, exclude=[None]):
     """Just dump store into a new store
     that is (i) of dtype float and
     (ii) writeable.
     FIXME: Needs rework (get new store from caller)
     """
-    tmp = ".".join([strftime("%Y-%m-%d-%H:%M:%S"), "float"])
-    float_store = h5py.File(tmp, "w")
-    apply_to_store(store, float_store, _floatify, 0)
-    print "Temporary float store. Take care of", tmp
-    return float_store
+    apply_to_store(store, new, _floatify, pars=chunk, exclude=exclude)
+    return new
 
 
 def binary_invert(store, new, chunk, exclude=[None]):
@@ -715,15 +712,17 @@ def _crop(store, key, new, box):
     new.attrs["patch_shape"] = (dy, dx)
 
 
-def _floatify(store, key, float_store, to_ignore):
+def _floatify(store, key, float_store, pars):
     """Just dump store into a new store
     that is (i) of dtype float and
     (ii) writeable.
     """
-    dset = float_store.create_dataset(name=key, shape=store[key].shape, dtype=np.float)
+    chunk = pars
+    shape = store[key].shape
+    dset = float_store.create_dataset(name=key, shape=shape, dtype=np.float)
 
-    for i, p in enumerate(store[key]):
-        dset[i] = np.asarray(p, dtype=np.float)
+    for i in xrange(0, shape[0], chunk):
+        dset[i:i+chunk] = np.asarray(store[key][i:i+chunk], dtype=np.float)
 
     for attrs in store[key].attrs:
         dset.attrs[attrs] = store[key].attrs[attrs]

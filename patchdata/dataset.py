@@ -663,9 +663,9 @@ def perturb_patches(patches, newshape, box, nop=False):
             p2 = p2.transpose(flip)
         elif rnd < 0.75:
             rnd = np.random.randn() - 0.5
-            p1 = p1.rotate(10*rnd, resample=img.BICUBIC, expand=False)
+            p1 = p1.rotate(3*rnd, resample=img.BICUBIC, expand=False)
             rnd = np.random.randn() - 0.5
-            p2 = p2.rotate(10*rnd, resample=img.BICUBIC, expand=False)
+            p2 = p2.rotate(3*rnd, resample=img.BICUBIC, expand=False)
         else:
             diffx = np.random.random_integers(-2, 2)
             diffy = np.random.random_integers(-2, 2)

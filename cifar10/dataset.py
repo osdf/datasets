@@ -6,13 +6,18 @@ Handle data from CIFAR 10.
 
 import h5py
 import cPickle
-from os.path import dirname, join
+from os.path import dirname, join, exists
+import hashlib
 
 import numpy as np
 try:
     import Image as img
 except:
     import PIL as img
+
+
+from helpers import helpers
+
 
 _default_path = dirname(__file__)
 _default_name = join(_default_path, "cifar10_32x32.h5")
@@ -24,9 +29,10 @@ _test  = ["test_batch"]
 _batch_size = 10000
 
 
-def get_store(fname=_default_name):
-    print "Loading from store", fname
-    return h5py.File(fname, 'r')
+def get_store(fname=_default_name, path=_default_path, verbose=True):
+    if verbose:
+        print "Loading from store", fname
+    return h5py.File(join(path, fname), 'r')
 
 
 def build_store(store=_default_name):
@@ -55,6 +61,43 @@ def build_gray_store(store=_default_gray, size=None):
 
     print "Closing", store
     h5file.close()
+
+
+def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains stationary images from _store_.
+    """
+    if verbose:
+        print "Stationarize store", store, "with eps, C, div" , eps, C, div
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
+    name = name.hexdigest()[:8] + ".stat.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    stat = h5py.File(name, 'w')
+    helpers.stationary(store, stat, chunk=chunk, eps=eps, C=C, div=div, exclude=exclude)
+    stat.attrs["Stationary"] = "from " + str(store.filename)
+    return stat
+
+def floatify_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains stationary images from _store_.
+    """
+    if verbose:
+        print "Floatify store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + "float")
+    name = name.hexdigest()[:8] + ".float.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    flt = h5py.File(name, 'w')
+    helpers.simply_float(store, flt, chunk=chunk, exclude=exclude)
+    flt.attrs["Floatify"] = "from " + str(store.filename)
+    return flt
 
 
 def _create_grp(store, grp_name, batches, gray=False, size=None):
