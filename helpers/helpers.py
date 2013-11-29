@@ -233,6 +233,18 @@ def apply_to_store(store, new, method, pars, exclude=[None]):
                 method(store, key, new, pars)
 
 
+def clone_group(store, key, new):
+    """
+    """
+    grp = new.create_group(name=key)
+    for k in store[key].keys():
+        if type(store[key][k]) is h5py.Group:
+            clone_group(store[key], k, grp)
+
+        if type(store[key]) is h5py.Dataset:
+            clone_dataset(store[key], k, grp)
+
+
 def clone_dataset(store, key, new):
     """
     """
@@ -366,7 +378,8 @@ def fuse(store, new, groups, labels, stride=2, exclude=[None]):
         for j, g in enumerate(groups):
             inputs[base+j*stride:base+(j+1)*stride, :] = store[g][stride*i:stride*(i+1),:]
             targets[base+j*stride:base+(j+1)*stride] = labels[j]
-
+    for attrs in store[groups[0]].attrs:
+        inputs.attrs[attrs] = store[groups[0]].attrs[attrs]
 
 def merge(store1, store2, new, stride=4, exclude=[None]):
     """
