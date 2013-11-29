@@ -44,10 +44,10 @@ _default_path = dirname(__file__)
 _default_pairings = (500, 1000, 2500, 5000, 10000, 25000)
 
 
-def get_store(fname="patchdata_64x64.h5", path=_default_path, verbose=True):
+def get_store(fname="patchdata_64x64.h5", path=_default_path, verbose=True, access='r'):
     if verbose:
         print "Loading from store", fname
-    return h5py.File(join(path, fname), 'r')
+    return h5py.File(join(path, fname), access)
 
 
 def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset):
@@ -187,7 +187,7 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
         jt = _fill_up(store[d], train, indices=rt, pos=jt, chunk=chunk)
         jv = _fill_up(store[d], valid, indices=rv, pos=jv, chunk=chunk)
     select.attrs["Original"] = "from " + str(store.filename)
-    #helpers.shuffle(select)
+    helpers.shuffle(select)
     return select
 
 
@@ -409,7 +409,7 @@ def row0_store(store, chunk=512, cache=False, verbose=True):
     return r0 
 
 
-def feat0_store(store, to_sub, chunk=512, cache=False):
+def feat0_store(store, to_sub, chunk=512, exclude=[None], cache=False):
     """A new store that is featurewise 0-mean.
     """
     print "Feat0 store", store
@@ -422,7 +422,7 @@ def feat0_store(store, to_sub, chunk=512, cache=False):
 
     print "No cache, writing to", name
     f0 = h5py.File(name, 'w')
-    helpers.feat_sub(store, f0, chunk=chunk, sub=to_sub)
+    helpers.feat_sub(store, f0, chunk=chunk, sub=to_sub, exclude=exclude)
     f0.attrs["Feat0"] = "from " + str(store.filename)
     return f0 
 
@@ -465,7 +465,7 @@ def gstd1_store(store, to_div, chunk=512, cache=False, verbose=True):
     return std
 
 
-def resize_store(store, shape, cache=False, verbose=True):
+def resize_store(store, shape, cache=False, exclude=[None], verbose=True):
     """A new store that contains resized images from _store_.
     """
     if verbose:
@@ -479,11 +479,11 @@ def resize_store(store, shape, cache=False, verbose=True):
 
     print "No cache, writing to", name
     rsz = h5py.File(name, 'w')
-    helpers.resize(store, rsz, shape)
+    helpers.resize(store, rsz, shape, exclude=exclude)
     rsz.attrs["Resized"] = "from " + str(store.filename)
     return rsz
 
-def fward_store(store, fward, D, chunk=512, cache=False, verbose=True):
+def fward_store(store, fward, D, chunk=512, cache=False, exclude=[None], verbose=True):
     """
     """
     if verbose:
@@ -503,7 +503,7 @@ def fward_store(store, fward, D, chunk=512, cache=False, verbose=True):
     return fw
 
 
-def at_store(store, M, chunk=512, cache=False, verbose=True):
+def at_store(store, M, chunk=512, cache=False, exclude=[None], verbose=True):
     """
     """
     if verbose:
@@ -517,7 +517,7 @@ def at_store(store, M, chunk=512, cache=False, verbose=True):
 
     print "No cache, writing to", name
     at = h5py.File(name, 'w')
-    helpers.at(store, at, M, chunk=chunk)
+    helpers.at(store, at, M, chunk=chunk, exclude=exclude)
     at.attrs["AT"] = "from " + str(store.filename)
     return at
 
@@ -636,51 +636,26 @@ def perturb_patches(patches, newshape, box, nop=False):
     dx = int(np.sqrt(d))
     tmp = patches.reshape((n, dx, dx))
     result = np.zeros((n, newshape[0]*newshape[1]))
-    box1 = box
-    box2 = box
     for j in xrange(n/2):
         p1 = img.fromarray(tmp[2*j])
         p2 = img.fromarray(tmp[2*j + 1])
         
-        if nop:
-            result[2*j, :] = np.asarray(p1.crop(box)).ravel()
-            result[2*j+1,:] = np.asarray(p2.crop(box)).ravel()
-            continue
-
         rnd = np.random.rand()
-        if rnd < 0.25:
-            pass
-        elif rnd < 0.5:
-            # flip
-            rnd1 = np.random.randn()
+        if rnd < 0.5:
+            rnd1 = np.random.rand()
             if rnd1 < 0.33:
                 flip = img.ROTATE_90
             elif rnd1 < 0.66:
                 flip = img.ROTATE_180
             else:
                 flip = img.ROTATE_270
+
             p1 = p1.transpose(flip)
             p2 = p2.transpose(flip)
-        elif rnd < 0.75:
-            rnd = np.random.randn() - 0.5
-            p1 = p1.rotate(3*rnd, resample=img.BICUBIC, expand=False)
-            rnd = np.random.randn() - 0.5
-            p2 = p2.rotate(3*rnd, resample=img.BICUBIC, expand=False)
-        else:
-            diffx = np.random.random_integers(-2, 2)
-            diffy = np.random.random_integers(-2, 2)
-            box1 = (box1[0] + diffx, box1[1] + diffy, box1[2] + diffx, box1[3] + diffy)
-            diffx = np.random.random_integers(-2, 2)
-            diffy = np.random.random_integers(-2, 2)
-            box2 = (box2[0] + diffx, box2[1] + diffy, box2[2] + diffx, box2[3] + diffy)
-        result[2*j, :] = np.asarray(p1.crop(box)).ravel()
-        result[2*j+1,:] = np.asarray(p2.crop(box)).ravel()
-
-    means = np.mean(result, axis=1)
-    result -= np.atleast_2d(means).T
-    norm = np.sqrt(np.sum(result**2, axis=1) + 1e-8)
-    result /= np.atleast_2d(norm).T
+        result[2*j, :] = np.asarray(p1).ravel()
+        result[2*j+1,:] = np.asarray(p2).ravel()
     return result
+
 
 if __name__=="__main__":
     build_store()
