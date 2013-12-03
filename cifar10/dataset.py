@@ -27,6 +27,7 @@ _train = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4"]
 _valid = ["data_batch_5"]
 _test  = ["test_batch"]
 _batch_size = 10000
+_all = _train + _valid + _test
 
 
 def get_store(fname=_default_name, path=_default_path, verbose=True):
@@ -58,6 +59,18 @@ def build_gray_store(store=_default_gray, size=None):
     _create_grp(store=h5file, grp_name="train", batches=_train, gray=True, size=size)
     _create_grp(store=h5file, grp_name="validation", batches=_valid, gray=True, size=size)
     _create_grp(store=h5file, grp_name="test", batches=_test, gray=True, size=size)
+
+    print "Closing", store
+    h5file.close()
+
+
+def build_selected_store(store, selection, size, gray):
+    """Build a hdf5 store with selected subbatches.
+    """
+    print "Writing to", store
+    h5file = h5py.File(store, "w")
+
+    _create_grp(store=h5file, grp_name="selection", batches=selection, gray=gray, size=size)
 
     print "Closing", store
     h5file.close()
