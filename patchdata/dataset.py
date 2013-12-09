@@ -641,8 +641,8 @@ def flip_patches(patches):
         # only flip at most one image
         if flips < 0.33:
             # no flipping
-            result[2*j, :] = tmp[2*j]
-            result[2*j + 1, :] = tmp[2*j + 1]
+            result[2*j, :] = patches[2*j]
+            result[2*j + 1, :] = patches[2*j + 1]
         else:
             # either p1 or p2 flips
             p2 = img.fromarray(tmp[2*j + 1])
@@ -660,12 +660,60 @@ def flip_patches(patches):
                 p1 = img.fromarray(tmp[2*j])
                 p1 = p1.transpose(flip)
                 result[2*j, :] = np.asarray(p1).ravel()
-                result[2*j+1,:] = tmp[2*j+1]
+                result[2*j+1,:] = patches[2*j+1]
             else:
                 p2 = img.fromarray(tmp[2*j+1])
                 p2 = p2.transpose(flip)
-                result[2*j, :] = tmp[2*j]
+                result[2*j, :] = patches[2*j]
                 result[2*j+1,:] = np.asarray(p2).ravel()
+    return result
+
+
+def gauss_patches(patches, sigma=0.1):
+    """
+    Noise one of the two patches with gaussian noise.
+    This could be done more efficiently (matrix * matrix),
+    but I want to make sure that only one of two patches
+    gets noised at most. With this constraint, the for loop
+    seems to be the most straight forward.
+    """
+    n, d = patches.shape
+    result = np.zeros((n, d))
+    for j in xrange(n/2):
+        gaussian = np.random.rand()
+        # only noise at most one image
+        if gaussian < 0.33:
+            # no noise
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j + 1]
+        elif gaussian < 0.66:
+            result[2*j, :] = patches[2*j] + np.random.normal(scale=sigma, size=(d,))
+            result[2*j+1, :] = patches[2*j+1]
+        else:
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j+1] + np.random.normal(scale=sigma, size=(d,))
+    return result
+
+
+def snp_patches(patches, drop):
+    """
+    Bernoulli noise (salt'n pepper) on patches.
+    """
+    n, d = patches.shape
+    result = np.zeros((n, d))
+    for j in xrange(n/2):
+        noise = np.random.rand()
+        # only noise at most one image
+        if noise < 0.33:
+            # no noise
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j + 1]
+        elif noise < 0.66:
+            result[2*j, :] = patches[2*j] * (np.random.uniform(size=(d,)) > drop)
+            result[2*j+1, :] = patches[2*j+1]
+        else:
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j+1] * (np.random.uniform(size=(d,)) > drop)
     return result
 
 
