@@ -627,21 +627,26 @@ def _patches_from_pair(pair, store):
     return store[pair[0],:], store[pair[1],:]
 
 
-def perturb_patches(patches, newshape, box, nop=False):
+def flip_patches(patches):
     """
-    Generate random perturbations. Assume that patches
-    come in pairs.
+    Flip patches (either 90 degrees left right, or 180 degrees).
+    Assume that patches come in pairs.
     """
     n, d = patches.shape
     dx = int(np.sqrt(d))
     tmp = patches.reshape((n, dx, dx))
-    result = np.zeros((n, newshape[0]*newshape[1]))
+    result = np.zeros((n, d))
     for j in xrange(n/2):
-        p1 = img.fromarray(tmp[2*j])
-        p2 = img.fromarray(tmp[2*j + 1])
-        
-        rnd = np.random.rand()
-        if rnd < 0.5:
+        flips = np.random.rand()
+        # only flip at most one image
+        if flips < 0.33:
+            # no flipping
+            result[2*j, :] = tmp[2*j]
+            result[2*j + 1, :] = tmp[2*j + 1]
+        else:
+            # either p1 or p2 flips
+            p2 = img.fromarray(tmp[2*j + 1])
+            # determine random flip
             rnd1 = np.random.rand()
             if rnd1 < 0.33:
                 flip = img.ROTATE_90
@@ -650,10 +655,17 @@ def perturb_patches(patches, newshape, box, nop=False):
             else:
                 flip = img.ROTATE_270
 
-            p1 = p1.transpose(flip)
-            p2 = p2.transpose(flip)
-        result[2*j, :] = np.asarray(p1).ravel()
-        result[2*j+1,:] = np.asarray(p2).ravel()
+            if flips < 0.66:
+                # p1 flips
+                p1 = img.fromarray(tmp[2*j])
+                p1 = p1.transpose(flip)
+                result[2*j, :] = np.asarray(p1).ravel()
+                result[2*j+1,:] = tmp[2*j+1]
+            else:
+                p2 = img.fromarray(tmp[2*j+1])
+                p2 = p2.transpose(flip)
+                result[2*j, :] = tmp[2*j]
+                result[2*j+1,:] = np.asarray(p2).ravel()
     return result
 
 
