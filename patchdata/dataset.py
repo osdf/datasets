@@ -465,6 +465,25 @@ def gstd1_store(store, to_div, chunk=512, cache=False, verbose=True):
     return std
 
 
+def double_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains stationary images from _store_.
+    """
+    if verbose:
+        print "Double store", store, "excluding ", exclude
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(exclude) + str(chunk))
+    name = name.hexdigest()[:8] + ".double.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    stat = h5py.File(name, 'w')
+    helpers.double(store, stat, chunk=chunk, exclude=exclude)
+    stat.attrs["Double"] = "from " + str(store.filename)
+    return stat
+
+
 def resize_store(store, shape, cache=False, exclude=[None], verbose=True):
     """A new store that contains resized images from _store_.
     """
