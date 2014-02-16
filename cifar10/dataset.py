@@ -113,6 +113,12 @@ def floatify_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
     return flt
 
 
+def crop_seq(length, size, shift):
+    """
+    Extract sequence of moving window.
+    """
+
+
 def _create_grp(store, grp_name, batches, gray=False, size=None):
     """
     """
