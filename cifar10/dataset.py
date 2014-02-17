@@ -73,7 +73,7 @@ def build_gray_seq(store=_default_gray, base_sz=(11, 11), seq_len=3, delta=4):
     gstore = get_store(store)
     trains = gstore["train"]["inputs"]
     new_store = h5py.File("gray_seq.h5", "w")
-    ins = new_store.create_dataset("inputs", shape=(trains.shape[0], sizex*sizey*seq_len), dtype=np.uint8)
+    ins = new_store.create_dataset("inputs", shape=(trains.shape[0], sizex*sizey*seq_len), dtype=trains.dtype)
     tmp = np.zeros(sizex*sizey*seq_len)
     for i in xrange(trains.shape[0]):
         dirctn = np.random.randint(0, 4)
