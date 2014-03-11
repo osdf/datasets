@@ -585,7 +585,7 @@ def pyramid_store(store, schema="Laplace", depth=3, chunk=512, cache=False, excl
     if verbose:
         print "Pyramid store", store, "with depth, schema:", depth, schema
     sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
+    name = hashlib.sha1(sfn + str(schema) + str(depth) + str(chunk))
     name = name.hexdigest()[:8] + ".lapy.h5"
     if cache is True and exists(name):
         print "Using cached version ", name
@@ -593,7 +593,7 @@ def pyramid_store(store, schema="Laplace", depth=3, chunk=512, cache=False, excl
 
     print "No cache, writing to", name
     pyr = h5py.File(name, 'w')
-    helpers.pyramid(store, stat, chunk=chunk, schema=schema, depth=depth, exclude=exclude)
+    helpers.pyramid(store, pyr, chunk=chunk, schema=schema, depth=depth, exclude=exclude)
     pyr.attrs["Pyramid"] = "from " + str(store.filename)
     return pyr
 

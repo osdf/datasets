@@ -662,17 +662,17 @@ def _pyramid(store, key, new, pars):
 
     """
     # this needs the cv module from osdf.
-    from cv import pyramid
-    from cv import filters
+    from osdfcv import filters
     chunk, schema, depth = pars[0], pars[1], pars[2]
     
     filtr = filters.binomial(5)
     if schema is "Laplace":
-        from pyramid.laplacian import build
+        from osdfcv.pyramid.laplacian import build
 
     dsets = []
     dtype = store[key].dtype
     shape = store[key].shape
+    dx = int(np.sqrt(shape[1]))
     for d in xrange(depth):
         dsets.append(new.create_dataset(name=key+str(d), shape=shape, dtype=dtype))
         shape = (shape[0], shape[1]/4)
@@ -680,15 +680,10 @@ def _pyramid(store, key, new, pars):
     k = 0 # global counter, not nice
     for i in xrange(0, store[key].shape[0], chunk):
         for l in store[key][i:i+chunk]:
-            pyramid = build(l, depth, down_filt=filtr, up_filt=None)
+            pyramid = build(l.reshape(dx, dx), depth, down_filt=filtr, up_filt=None)
             for j, img in enumerate(pyramid):
                 dsets[j][k] = img.ravel()
-                k = k + 1
-
-    for attrs in store[key].attrs:
-        dset.attrs[attrs] = store[key].attrs[attrs]
-    dset.attrs['depth'] = depth
-    dset.attrs['schema'] = schema
+            k = k + 1
 
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
