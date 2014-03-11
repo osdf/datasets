@@ -310,6 +310,14 @@ def pyramid(store, new, chunk=512, schema="Laplace", depth=3, exclude=[None]):
     apply_to_store(store, new, _pyramid, pars, exclude=exclude)
 
 
+def double(store, new, chunk=512, exclude=[None]):
+    """Generate a new store _new_ from _store_ by
+    doubling every entry.
+    """
+    pars = (chunk,)
+    apply_to_store(store, new, _double, pars, exclude=exclude)
+
+
 def row0(store, new, chunk=512, exclude=[None]):
     """Every row has mean 0.
     """
@@ -688,8 +696,6 @@ def _pyramid(store, key, new, pars):
     new.attrs['schema'] = depth
 
 
-
-
 def _divisive(store, key, new, pars):
     """Divide by row-norm, possibly scale.
 
@@ -788,3 +794,22 @@ def _floatify(store, key, float_store, pars):
 
     for attrs in store[key].attrs:
         dset.attrs[attrs] = store[key].attrs[attrs]
+
+
+def _double(store, key, new, pars):
+    """New store is simply every row twice next to each other
+    """
+    chunk = pars[0]
+
+    shape = store[key].shape
+    dset = new.create_dataset(name=key, shape=(shape[0], 2*shape[1]), dtype=store[key].dtype)
+
+    for i in xrange(0, store[key].shape[0], chunk):
+        dset[i:i+chunk, :shape[1]] = store[key][i:i+chunk]
+        dset[i:i+chunk, shape[1]:] = store[key][i:i+chunk]
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]

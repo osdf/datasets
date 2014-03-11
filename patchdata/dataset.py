@@ -465,6 +465,25 @@ def gstd1_store(store, to_div, chunk=512, cache=False, verbose=True):
     return std
 
 
+def double_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains stationary images from _store_.
+    """
+    if verbose:
+        print "Double store", store, "excluding ", exclude
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(exclude) + str(chunk))
+    name = name.hexdigest()[:8] + ".double.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    stat = h5py.File(name, 'w')
+    helpers.double(store, stat, chunk=chunk, exclude=exclude)
+    stat.attrs["Double"] = "from " + str(store.filename)
+    return stat
+
+
 def resize_store(store, shape, cache=False, exclude=[None], verbose=True):
     """A new store that contains resized images from _store_.
     """
@@ -646,21 +665,26 @@ def _patches_from_pair(pair, store):
     return store[pair[0],:], store[pair[1],:]
 
 
-def perturb_patches(patches, newshape, box, nop=False):
+def flip_patches(patches):
     """
-    Generate random perturbations. Assume that patches
-    come in pairs.
+    Flip patches (either 90 degrees left right, or 180 degrees).
+    Assume that patches come in pairs.
     """
     n, d = patches.shape
     dx = int(np.sqrt(d))
     tmp = patches.reshape((n, dx, dx))
-    result = np.zeros((n, newshape[0]*newshape[1]))
+    result = np.zeros((n, d))
     for j in xrange(n/2):
-        p1 = img.fromarray(tmp[2*j])
-        p2 = img.fromarray(tmp[2*j + 1])
-        
-        rnd = np.random.rand()
-        if rnd < 0.5:
+        flips = np.random.rand()
+        # only flip at most one image
+        if flips < 0.33:
+            # no flipping
+            result[2*j, :] = patches[2*j]
+            result[2*j + 1, :] = patches[2*j + 1]
+        else:
+            # either p1 or p2 flips
+            p2 = img.fromarray(tmp[2*j + 1])
+            # determine random flip
             rnd1 = np.random.rand()
             if rnd1 < 0.33:
                 flip = img.ROTATE_90
@@ -669,10 +693,65 @@ def perturb_patches(patches, newshape, box, nop=False):
             else:
                 flip = img.ROTATE_270
 
-            p1 = p1.transpose(flip)
-            p2 = p2.transpose(flip)
-        result[2*j, :] = np.asarray(p1).ravel()
-        result[2*j+1,:] = np.asarray(p2).ravel()
+            if flips < 0.66:
+                # p1 flips
+                p1 = img.fromarray(tmp[2*j])
+                p1 = p1.transpose(flip)
+                result[2*j, :] = np.asarray(p1).ravel()
+                result[2*j+1,:] = patches[2*j+1]
+            else:
+                p2 = img.fromarray(tmp[2*j+1])
+                p2 = p2.transpose(flip)
+                result[2*j, :] = patches[2*j]
+                result[2*j+1,:] = np.asarray(p2).ravel()
+    return result
+
+
+def gauss_patches(patches, sigma=0.1):
+    """
+    Noise one of the two patches with gaussian noise.
+    This could be done more efficiently (matrix * matrix),
+    but I want to make sure that only one of two patches
+    gets noised at most. With this constraint, the for loop
+    seems to be the most straight forward.
+    """
+    n, d = patches.shape
+    result = np.zeros((n, d))
+    for j in xrange(n/2):
+        gaussian = np.random.rand()
+        # only noise at most one image
+        if gaussian < 0.33:
+            # no noise
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j + 1]
+        elif gaussian < 0.66:
+            result[2*j, :] = patches[2*j] + np.random.normal(scale=sigma, size=(d,))
+            result[2*j+1, :] = patches[2*j+1]
+        else:
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j+1] + np.random.normal(scale=sigma, size=(d,))
+    return result
+
+
+def snp_patches(patches, drop):
+    """
+    Bernoulli noise (salt'n pepper) on patches.
+    """
+    n, d = patches.shape
+    result = np.zeros((n, d))
+    for j in xrange(n/2):
+        noise = np.random.rand()
+        # only noise at most one image
+        if noise < 0.33:
+            # no noise
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j + 1]
+        elif noise < 0.66:
+            result[2*j, :] = patches[2*j] * (np.random.uniform(size=(d,)) > drop)
+            result[2*j+1, :] = patches[2*j+1]
+        else:
+            result[2*j, :] = patches[2*j]
+            result[2*j+1, :] = patches[2*j+1] * (np.random.uniform(size=(d,)) > drop)
     return result
 
 

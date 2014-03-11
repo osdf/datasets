@@ -27,6 +27,7 @@ _train = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4"]
 _valid = ["data_batch_5"]
 _test  = ["test_batch"]
 _batch_size = 10000
+_all = _train + _valid + _test
 
 
 def get_store(fname=_default_name, path=_default_path, verbose=True):
@@ -35,21 +36,21 @@ def get_store(fname=_default_name, path=_default_path, verbose=True):
     return h5py.File(join(path, fname), 'r')
 
 
-def build_store(store=_default_name):
+def build_store(store=_default_name, size=(32, 32)):
     """Build a hdf5 data store for CIFAR.
     """
     print "Writing to", store
     h5file = h5py.File(store, "w")
 
-    _create_grp(store=h5file, grp_name="train", batches=_train)
-    _create_grp(store=h5file, grp_name="validation", batches=_valid)
-    _create_grp(store=h5file, grp_name="test", batches=_test)
+    _create_grp(store=h5file, grp_name="train", batches=_train, size=size)
+    _create_grp(store=h5file, grp_name="validation", batches=_valid, size=size)
+    _create_grp(store=h5file, grp_name="test", batches=_test, size=size)
 
     print "Closing", store
     h5file.close()
 
 
-def build_gray_store(store=_default_gray, size=None):
+def build_gray_store(store=_default_gray, size=(32, 32)):
     """Build a hdf5 data store for CIFAR10, inputs are gray.
     """
     print "Writing to", store
@@ -58,6 +59,62 @@ def build_gray_store(store=_default_gray, size=None):
     _create_grp(store=h5file, grp_name="train", batches=_train, gray=True, size=size)
     _create_grp(store=h5file, grp_name="validation", batches=_valid, gray=True, size=size)
     _create_grp(store=h5file, grp_name="test", batches=_test, gray=True, size=size)
+
+    print "Closing", store
+    h5file.close()
+
+
+def build_gray_seq(store=_default_gray, base_sz=(11, 11), seq_len=3, delta=4):
+    """
+    """
+    sizex = base_sz[0]
+    sizey = base_sz[1]
+
+    gstore = get_store(store)
+    trains = gstore["train"]["inputs"]
+    new_store = h5py.File("gray_seq.h5", "w")
+    ins = new_store.create_dataset("inputs", shape=(trains.shape[0], sizex*sizey*seq_len), dtype=trains.dtype)
+    tmp = np.zeros(sizex*sizey*seq_len)
+    for i in xrange(trains.shape[0]):
+        dirctn = np.random.randint(0, 4)
+
+        if (dirctn == 0):
+            x = np.random.randint(0, 32-sizex)
+            y = np.random.randint(0, 10)
+            dy = np.random.randint(1, delta)
+            dx = 0
+        elif (dirctn == 1):
+            x = np.random.randint(0, 10)
+            y = np.random.randint(0, 32-sizey)
+            dy = 0
+            dx = np.random.randint(1, delta)
+        elif (dirctn == 2):
+            x = np.random.randint(0, 10)
+            y = np.random.randint(0, 10)
+            dy = np.random.randint(1, delta)
+            dx = 0
+        elif (dirctn == 3):
+            x = np.random.randint(0, 10)
+            y = np.random.randint(11, 21)
+            dy = -np.random.randint(1, delta)
+            dx = np.random.randint(1, delta)
+        patch = trains[i].reshape(32, 32)
+        for j in xrange(seq_len):
+            tmp[sizex*sizey*j:sizex*sizey*(j+1)] = patch[x:x+sizex, y:y+sizey].ravel()
+            x += dx
+            y += dy
+        ins[i, :] = tmp
+    gstore.close()
+    new_store.close()
+
+
+def build_selected_store(store, selection, size, gray):
+    """Build a hdf5 store with selected subbatches.
+    """
+    print "Writing to", store
+    h5file = h5py.File(store, "w")
+
+    _create_grp(store=h5file, grp_name="selection", batches=selection, gray=gray, size=size)
 
     print "Closing", store
     h5file.close()
@@ -81,6 +138,7 @@ def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, excl
     stat.attrs["Stationary"] = "from " + str(store.filename)
     return stat
 
+
 def floatify_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
     """A new store that contains stationary images from _store_.
     """
@@ -98,6 +156,25 @@ def floatify_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
     helpers.simply_float(store, flt, chunk=chunk, exclude=exclude)
     flt.attrs["Floatify"] = "from " + str(store.filename)
     return flt
+
+
+def at_store(store, M, chunk=512, cache=False, exclude=[None], verbose=True):
+    """
+    """
+    if verbose:
+        print "AT store", store
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(M) + str(chunk))
+    name = name.hexdigest()[:8] + ".at.h5"
+    if cache is True and exists(name):
+        if verbose: print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    at = h5py.File(name, 'w')
+    helpers.at(store, at, M, chunk=chunk, exclude=exclude)
+    at.attrs["AT"] = "from " + str(store.filename)
+    return at
 
 
 def _create_grp(store, grp_name, batches, gray=False, size=None):
