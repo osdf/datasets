@@ -302,6 +302,14 @@ def stationary(store, new, chunk=512, eps=1e-8, C=1., div=1., exclude=[None]):
     apply_to_store(store, new, _stationary, pars, exclude=exclude)
 
 
+def pyramid(store, new, chunk=512, schema="Laplace", depth=3, exclude=[None]):
+    """Generate a new store _new_ from _store_ by
+    building a pyramid of type _schema_ with depth _depth_.
+    """
+    pars = (chunk, schema, depth)
+    apply_to_store(store, new, _pyramid, pars, exclude=exclude)
+
+
 def row0(store, new, chunk=512, exclude=[None]):
     """Every row has mean 0.
     """
@@ -639,6 +647,47 @@ def _stationary(store, key, new, pars):
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['StationaryC'] = C
+
+
+def _pyramid(store, key, new, pars):
+    """Pyramid store.
+
+    """
+    # this needs the cv module from osdf.
+    from cv import pyramid
+    from cv import filters
+    chunk, schema, depth = pars[0], pars[1], pars[2]
+    
+    filtr = filters.binomial(5)
+    if schema is "Laplace":
+        from pyramid.laplacian import build
+
+    dsets = []
+    dtype = store[key].dtype
+    shape = store[key].shape
+    for d in xrange(depth):
+        dsets.append(new.create_dataset(name=key+str(d), shape=shape, dtype=dtype))
+        shape = (shape[0], shape[1]/4)
+
+    k = 0 # global counter, not nice
+    for i in xrange(0, store[key].shape[0], chunk):
+        for l in store[key][i:i+chunk]:
+            pyramid = build(l, depth, down_filt=filtr, up_filt=None)
+            for j, img in enumerate(pyramid):
+                dsets[j][k] = img.ravel()
+                k = k + 1
+
+    for attrs in store[key].attrs:
+        dset.attrs[attrs] = store[key].attrs[attrs]
+    dset.attrs['depth'] = depth
+    dset.attrs['schema'] = schema
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['depth'] = depth
+    new.attrs['schema'] = depth
+
+
 
 
 def _divisive(store, key, new, pars):

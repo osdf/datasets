@@ -560,6 +560,25 @@ def zeroone_group(store, chunk=512, group=["match", "non-match"], cache=False):
     return zo 
 
 
+def pyramid_store(store, schema="Laplace", depth=3, chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains pyramid images from _store_.
+    """
+    if verbose:
+        print "Pyramid store", store, "with depth, schema:", depth, schema
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
+    name = name.hexdigest()[:8] + ".lapy.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    pyr = h5py.File(name, 'w')
+    helpers.pyramid(store, stat, chunk=chunk, schema=schema, depth=depth, exclude=exclude)
+    pyr.attrs["Pyramid"] = "from " + str(store.filename)
+    return pyr
+
+
 def _crop_to_numpy(patchfile, ravel=True):
     """Convert _patchfile_ to a numpy array with patches per row.
 
