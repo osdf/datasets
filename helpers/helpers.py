@@ -310,6 +310,14 @@ def pyramid(store, new, chunk=512, schema="Laplace", depth=3, exclude=[None]):
     apply_to_store(store, new, _pyramid, pars, exclude=exclude)
 
 
+def pyramid_fuse(store, new, chunk=512, schema="Laplace", depth=(), exclude=[None]):
+    """Generate a new store _new_ from _store_ by
+    building a pyramid of type _schema_ with depth _depth_.
+    """
+    pars = (chunk, schema, depth)
+    apply_to_store(store, new, _pyramid_fuse, pars, exclude=exclude)
+
+
 def double(store, new, chunk=512, exclude=[None]):
     """Generate a new store _new_ from _store_ by
     doubling every entry.
@@ -678,9 +686,46 @@ def _pyramid(store, key, new, pars):
     k = 0 # global counter, not nice
     for i in xrange(0, store[key].shape[0], chunk):
         for l in store[key][i:i+chunk]:
-            pyramid = build_pil(l.reshape(dx, dx), depth, down_filt=filtr, up_filt=None)
+            pyramid = build_pil(l.reshape(dx, dx), depth)
             for j, img in enumerate(pyramid):
                 dsets[j][k] = img.ravel()
+            k = k + 1
+
+    for attrs in store.attrs:
+        new.attrs[attrs] = store.attrs[attrs]
+    new.attrs['depth'] = depth
+    new.attrs['schema'] = depth
+
+
+def _pyramid_fuse(store, key, new, pars):
+    """Pyramid store. All stages of a pyramid
+    fused into one row vector.
+
+    """
+    # this needs the cv module from osdf.
+    chunk, schema, shapes = pars[0], pars[1], pars[2]
+    depth = len(shapes)
+
+    if schema is "Laplace":
+        from osdfcv.pyramid.laplacian import build_pil
+
+    dtype = store[key].dtype
+    n, x = store[key].shape
+    dx = int(np.sqrt(x))
+    shape = 0
+    for sh in shapes:
+        shape = shape + sh[0]*sh[1]
+    dset = new.create_dataset(name=key+"_pyr", shape=(n, shape), dtype=dtype)
+
+    k = 0 # global counter, not nice
+    for i in xrange(0, store[key].shape[0], chunk):
+        for l in store[key][i:i+chunk]:
+            pyramid = build_pil(l.reshape(dx, dx), depth)
+            start = 0
+            for j, img in enumerate(pyramid):
+                stop = start + shapes[j][0]*shapes[j][1]
+                dset[k][start:stop] = img.ravel()
+                start = stop
             k = k + 1
 
     for attrs in store.attrs:

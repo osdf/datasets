@@ -598,6 +598,25 @@ def pyramid_store(store, schema="Laplace", depth=3, chunk=512, cache=False, excl
     return pyr
 
 
+def pyramidfuse_store(store, schema="Laplace", depth=(), chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains pyramid images from _store_.
+    """
+    if verbose:
+        print "Pyramid Fuse store", store, "with depth, schema:", depth, schema
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(schema) + str(depth) + str(chunk))
+    name = name.hexdigest()[:8] + ".lapyfuse.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    pyr = h5py.File(name, 'w')
+    helpers.pyramid_fuse(store, pyr, chunk=chunk, schema=schema, depth=depth, exclude=exclude)
+    pyr.attrs["PyramidFused"] = "from " + str(store.filename)
+    return pyr
+
+
 def _crop_to_numpy(patchfile, ravel=True):
     """Convert _patchfile_ to a numpy array with patches per row.
 
