@@ -725,13 +725,15 @@ def _pyramid_fuse(store, key, new, pars):
             for j, img in enumerate(pyramid):
                 stop = start + shapes[j][0]*shapes[j][1]
                 dset[k][start:stop] = img.ravel()
+                print dset[k]
                 start = stop
             k = k + 1
+            print k
 
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['depth'] = depth
-    new.attrs['schema'] = depth
+    new.attrs['schema'] = schema
 
 
 def _divisive(store, key, new, pars):
