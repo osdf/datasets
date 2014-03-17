@@ -700,7 +700,6 @@ def _pyramid(store, key, new, pars):
 def _pyramid_fuse(store, key, new, pars):
     """Pyramid store. All stages of a pyramid
     fused into one row vector.
-
     """
     # this needs the cv module from osdf.
     chunk, schema, shapes = pars[0], pars[1], pars[2]
@@ -716,7 +715,7 @@ def _pyramid_fuse(store, key, new, pars):
     for sh in shapes:
         shape = shape + sh[0]*sh[1]
     dset = new.create_dataset(name=key+"_pyr", shape=(n, shape), dtype=dtype)
-
+    
     k = 0 # global counter, not nice
     for i in xrange(0, store[key].shape[0], chunk):
         for l in store[key][i:i+chunk]:
@@ -724,8 +723,7 @@ def _pyramid_fuse(store, key, new, pars):
             start = 0
             for j, img in enumerate(pyramid):
                 stop = start + shapes[j][0]*shapes[j][1]
-                dset[k][start:stop] = img.ravel()
-                print dset[k]
+                dset[k, start:stop] = img.ravel()
                 start = stop
             k = k + 1
             print k
