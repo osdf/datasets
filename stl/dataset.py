@@ -30,73 +30,83 @@ from helpers import helpers
 # size of an original patch in pixels
 patch_x = 96
 patch_y = 96
+# color images
+channels = 3
 
-# helpful defaults
-_default_path = dirname(__file__)
-_default_pairings = (500, 1000, 2500, 5000, 10000, 25000)
+# number of classes
+classes = 10
+
+# number of training images per class
+train_size = 500
+
+# number of test images
+test_size = 800
+
+# standard path
+_default_path = dirname(__file__) + "./stl10_binary"
 
 
-def get_store(fname="stl_96x96.h5", path=_default_path, verbose=True, access='r'):
+def get_store(fname="stl_96x96_train.h5", verbose=True, access='r'):
     if verbose:
         print "Loading from store", fname
-    return h5py.File(join(path, fname), access)
+    return h5py.File(fname, access)
 
 
-def build_store(fname="stl_96x96.h5", path=_default_path, dataset=dataset):
-    print "Writing to", fname
-    f = h5py.File(join(path, fname), "w")
-    for ds in dataset:
-        ds_path = join(path, ds)
-        totals = _available_patches(ds_path)
-        dset = f.create_dataset(name=ds, shape=(totals, patch_x*patch_y), dtype = np.uint8)
-        bmps, mod = divmod(totals, per_bmp)
-        print "For", ds, "reading a total of", totals, "patches from", bmps, "files into", fname
-        for i in xrange(bmps):
-            bmp = join(ds_path, ''.join(["patches", str(i).zfill(4), ".bmp"]))
-            dset[i*per_bmp:(i+1)*per_bmp] = _crop_to_numpy(bmp)
-        if mod > 0:
-            bmp = join(ds_path, ''.join(["patches", str(bmps).zfill(4), ".bmp"])) 
-            dset[-(totals%per_bmp):] = _crop_to_numpy(bmp)[:mod]
-    f.attrs["dataset"] = dataset
-    f.attrs["patch_shape"] = (patch_y, patch_x)
-    f.close()
-    print "Wrote", dataset, "to", fname, f
-
-
-def build_pairs_store(store, pair_list=_default_pairings, path=_default_path, tag=None):
-    """Put matching/non-matching pairs into a hdf5.
-
-    There is one hdf5 per dataset, with the available number of pairs 
-    in _pair_list_. These numbers form the groups of every store. 
-    The store is using the original patches, scaled versions of 
-    these patches should be generated with resize.
-    
-    Every group has two datasets, 'match' and 'non-match',
-    both arrays of equal length, the original pairs are formed by
-    blocks of consecutive rows.
-
-    Note: Every dataset in this store has dtype=np.float64, to ease
-    later evaluation (avoid costly rebuilding everyting into float64).
-    For this reason, reconsider when 'extending' pair_list into the 100.000
-    range.
+def build_store(origin="train", path=_default_path):
     """
-    if tag is None:
-        tag = ""
-    else:
-        tag = "".join([tag, "_"])
-    for ds in dataset:
-        fname = "".join([tag, "evaluate_", ds, "_", "64x64.h5"])
-        print "\nBuilding evaluate store", fname, "for", pair_list
-        f = h5py.File(join(path, fname), "w")
-        for pairs in pair_list:
-            grp = f.create_group(name=str(pairs))
-            mtch, non_mtch, ids = matches(ds, pairs, path=path)
-            _build_pairing_store(group=grp, name="match", pairings=mtch, store=store[ds])
-            _build_pairing_store(group=grp, name="non-match", pairings=non_mtch, store=store[ds])
-        f.attrs["dataset"] = ds
-        f.attrs["patch_shape"] = (patch_y, patch_x)
-        f.attrs["pairs"] = pair_list
-        f.close()
+    """
+    if origin is "train":
+        fname = "stl_96x96_train.h5"
+        size = train_size
+        inpts = "train_X.bin"
+        lbls = "train_y.bin"
+    elif tag is "test":
+        fname = "stl_96x96_test.h5"
+        size = test_size
+        inpts = "test_X.bin"
+        lbls = "test_y.bin"
+    totals = classes * size
+    
+    print "Writing to", fname
+    h5f = h5py.File(fname, "w")
+
+    # data is available in binary fromat
+    f = open(join(path, inpts), "rb")
+    
+    dset = h5f.create_dataset(name=origin, shape=(totals,\
+            channels*patch_x*patch_y), dtype=np.uint8)
+    
+    for i in xrange(totals):
+        for c in xrange(channels):
+            uints = f.read(patch_x*patch_y)
+            if (len(uints) != patch_x*patch_y):
+                print "ERROR: in 'build_store', expected more data."
+                print "ERROR: remove the generated file: ", fname
+                h5f.close()
+                return
+            tmp = np.frombuffer(uints, dtype=np.uint8)
+            tmp = tmp.reshape(patch_x, patch_y).T
+            dset[i, c*patch_x*patch_y:(c+1)*patch_x*patch_y] = tmp.ravel()
+    f.close()
+    
+    f = open(join(path, lbls), "rb")
+    cset = h5f.create_dataset(name="trgts",\
+            shape=(totals,), dtype=np.int)
+    for i in xrange(totals):
+        lbl = f.read(1)
+        if (len(lbl) != 1):
+            print "ERROR: in 'build_store', expected more data."
+            print "ERROR: remove the generated file: ", fname
+            h5f.close()
+            return
+        cset[i] = ord(lbl)
+    f.close()
+ 
+    h5f.attrs["stl"] = origin 
+    h5f.attrs["patch_shape"] = (patch_y, patch_x)
+    h5f.attrs["channels"] = channels
+    h5f.close()
+    print "Wrote store to", fname
 
 
 def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
