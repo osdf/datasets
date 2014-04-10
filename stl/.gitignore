@@ -1,0 +1,5 @@
+*.gz
+*.h5
+*.select
+*.crop
+stl10_binary/

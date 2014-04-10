@@ -52,16 +52,22 @@ def get_store(fname="stl_96x96_train.h5", verbose=True, access='r'):
     return h5py.File(fname, access)
 
 
-def build_store(origin="train", path=_default_path):
+def build_store(origin="train", path=_default_path, consecutive=True):
     """
     """
     if origin is "train":
-        fname = "stl_96x96_train.h5"
+        if consecutive:
+            fname = "stl_96x96_train.h5"
+        else:
+            fname = "stl_96x96_train_rgb.h5"
         size = train_size
         inpts = "train_X.bin"
         lbls = "train_y.bin"
     elif tag is "test":
-        fname = "stl_96x96_test.h5"
+        if consecutive:
+            fname = "stl_96x96_test.h5"
+        else:
+            fname = "stl_96x96_test_rgb.h5"
         size = test_size
         inpts = "test_X.bin"
         lbls = "test_y.bin"
@@ -73,9 +79,10 @@ def build_store(origin="train", path=_default_path):
     # data is available in binary fromat
     f = open(join(path, inpts), "rb")
     
-    dset = h5f.create_dataset(name=origin, shape=(totals,\
+    dset = h5f.create_dataset(name="inpts", shape=(totals,\
             channels*patch_x*patch_y), dtype=np.uint8)
-    
+    tmp = np.zeros((channels, patch_x * patch_y), dtype=np.uint8)
+
     for i in xrange(totals):
         for c in xrange(channels):
             uints = f.read(patch_x*patch_y)
@@ -84,9 +91,12 @@ def build_store(origin="train", path=_default_path):
                 print "ERROR: remove the generated file: ", fname
                 h5f.close()
                 return
-            tmp = np.frombuffer(uints, dtype=np.uint8)
-            tmp = tmp.reshape(patch_x, patch_y).T
-            dset[i, c*patch_x*patch_y:(c+1)*patch_x*patch_y] = tmp.ravel()
+            tmp[c, :] = np.frombuffer(uints, dtype=np.uint8)
+            tmp[c, :] = tmp[c].reshape(patch_x, patch_y).T.ravel()
+            if consecutive:
+                dset[i, :] = tmp.ravel()
+            else:
+                dset[i, :] = tmp.T.ravel()
     f.close()
     
     f = open(join(path, lbls), "rb")
@@ -99,12 +109,46 @@ def build_store(origin="train", path=_default_path):
             print "ERROR: remove the generated file: ", fname
             h5f.close()
             return
-        cset[i] = ord(lbl)
+        cset[i] = ord(lbl) - 1
     f.close()
  
     h5f.attrs["stl"] = origin 
     h5f.attrs["patch_shape"] = (patch_y, patch_x)
     h5f.attrs["channels"] = channels
+    h5f.close()
+    print "Wrote store to", fname
+
+
+def gray_store(store="stl_96x96_train.h5",
+        patch_x=patch_x, patch_y=patch_y):
+    """
+    """
+    print "Note that you need a rgb ordering of the pixels!"
+    print "Therefore we add a suffix '_rgb'."
+    store = store.split('.')
+    fname = store[0] + "_gray." + store[1]
+    store = store[0] + "_rgb." + store[1]
+    
+    print "And now reading from {0}".format(store)
+    store = get_store(fname=store) 
+
+    print "Writing to", fname
+    h5f = h5py.File(fname, "w")
+
+    totals = store['inpts'].shape[0]
+    dset = h5f.create_dataset(name="inpts", shape=(totals,\
+            patch_x*patch_y), dtype=np.float)
+    tmp = np.zeros((channels, patch_x * patch_y), dtype=np.float)
+    for i in xrange(totals):
+        tmp = store['inpts'][i].reshape(patch_x, patch_y, channels)
+        dset[i, :] = np.dot(tmp[:, :, :3], [0.299, 0.587, 0.144]).ravel()
+
+    cset = h5f.create_dataset(name="trgts",\
+            shape=(totals,), dtype=np.int)
+    for i in xrange(totals):
+        cset[i] = store["trgts"][i] 
+
+    # TODO add attributes
     h5f.close()
     print "Wrote store to", fname
 
