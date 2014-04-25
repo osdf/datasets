@@ -55,7 +55,7 @@ def get_store(fname="stl_96x96_train.h5", path=_default_path,
     return h5py.File(join(path, fname), access)
 
 
-def build_store(origin="train", path=_default_path, consecutive=True):
+def build_store(origin="train", path=_bin_path, consecutive=True):
     """
     """
     if origin is "train":
@@ -66,7 +66,7 @@ def build_store(origin="train", path=_default_path, consecutive=True):
         size = train_size
         inpts = "train_X.bin"
         lbls = "train_y.bin"
-    elif tag is "test":
+    elif origin is "test":
         if consecutive:
             fname = "stl_96x96_test.h5"
         else:
@@ -119,6 +119,48 @@ def build_store(origin="train", path=_default_path, consecutive=True):
     h5f.attrs["patch_shape"] = (patch_y, patch_x)
     h5f.attrs["channels"] = channels
     h5f.close()
+    print "Wrote store to", fname
+
+
+def merge_train_test():
+    """
+    Merges train and test store.
+    """
+    trn = "stl_96x96_train_rgb.h5"
+    tst = "stl_96x96_test_rgb.h5"
+    fname = "stl_96x96_merged_rgb.h5"
+
+    print "Writing to", fname
+    trn = h5py.File(trn, "r")
+    tst = h5py.File(tst, "r")
+
+    merged = h5py.File(fname, "w")
+    totals_trn = trn['inpts'].shape[0]
+    totals_tst = tst['inpts'].shape[0]
+    totals = totals_trn + totals_tst
+
+    print "Merged data has size", totals
+
+    dset = merged.create_dataset(name="inpts", shape=(totals,\
+            channels*patch_x*patch_y), dtype=np.uint8)
+    cset = merged.create_dataset(name="trgts",\
+            shape=(totals,), dtype=np.int)
+
+    cur = 0
+    for i in xrange(totals_trn):
+        dset[cur, :] = trn['inpts'][i]
+        cset[cur] = trn['trgts'][i]
+        cur = cur + 1
+
+    for i in xrange(totals_tst):
+        dset[cur, :] = tst['inpts'][i]
+        cset[cur] = tst['trgts'][i]
+        cur = cur + 1
+
+    merged.attrs["stl"] = "merged"
+    merged.attrs["patch_shape"] = (patch_y, patch_x)
+    merged.attrs["channels"] = channels
+    merged.close()
     print "Wrote store to", fname
 
 
