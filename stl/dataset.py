@@ -43,13 +43,16 @@ train_size = 500
 test_size = 800
 
 # standard path
-_default_path = dirname(__file__) + "./stl10_binary"
+_default_path = dirname(__file__)
+_bin_path = dirname(__file__) + "./stl10_binary"
 
 
-def get_store(fname="stl_96x96_train.h5", verbose=True, access='r'):
+def get_store(fname="stl_96x96_train.h5", path=_default_path, 
+        verbose=True, access='r'):
+
     if verbose:
         print "Loading from store", fname
-    return h5py.File(fname, access)
+    return h5py.File(join(path, fname), access)
 
 
 def build_store(origin="train", path=_default_path, consecutive=True):
@@ -142,13 +145,15 @@ def gray_store(store="stl_96x96_train.h5",
     for i in xrange(totals):
         tmp = store['inpts'][i].reshape(patch_x, patch_y, channels)
         dset[i, :] = np.dot(tmp[:, :, :3], [0.299, 0.587, 0.144]).ravel()
+    dset.attrs["patch_shape"] = (96, 96)
 
     cset = h5f.create_dataset(name="trgts",\
             shape=(totals,), dtype=np.int)
     for i in xrange(totals):
         cset[i] = store["trgts"][i] 
 
-    # TODO add attributes
+    h5f.attrs["GrayStore"] = "from " + str(store.filename)
+
     h5f.close()
     print "Wrote store to", fname
 
