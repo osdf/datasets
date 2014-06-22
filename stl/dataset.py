@@ -200,6 +200,16 @@ def gray_store(store="stl_96x96_train.h5",
     print "Wrote store to", fname
 
 
+def pair_store():
+    """
+    get all indices of class i.
+    shuffle every list.
+    for every class i, get all x-many 2 pairs of indices.
+    randomly zip over all class i pairs.
+    """
+    pass
+
+
 def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
     """A new store that contains stationary images from _store_.
     """
