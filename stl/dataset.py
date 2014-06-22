@@ -200,14 +200,62 @@ def gray_store(store="stl_96x96_train.h5",
     print "Wrote store to", fname
 
 
-def pair_store():
+def pair_store(store, ):
     """
+    Generate positive (same class) and negative pairs of images.
+
     get all indices of class i.
     shuffle every list.
     for every class i, get all x-many 2 pairs of indices.
     randomly zip over all class i pairs.
     """
-    pass
+    from itertools import combinations as comb
+
+    print "Pairing on store", store
+    store = get_store(fname=store)
+    inpts = store['intps']
+    lbls = store['trgts']
+
+    # stl-10 has 10 classes
+    positives = []
+    classes = {}
+    for c in xrange(10):
+        idx = np.argwhere(lbls[:]==c).ravel()
+        classes[c] = idx
+        # shuffle indices?
+        pairs_c = comb(idx, 2)
+        for j, p in enumerate(pairs_c):
+            positives.append(p)
+    # shuffle positives
+    negatives = []
+    for t in xrange(totals):
+        # get c1, c2, two different classes
+        c1 = np.random.random_integers(10)
+        c2 = 0
+        while True:
+            c2 = np.random.random_integers(10)
+            if c1 != c2:
+                break
+        while True:
+            n1 = sample(classes[c1].shape[0])
+            n2 = sample(classes[c2].shape[0])
+            if (n1, n2) not in negatives:
+                negatives.append((n1, n2))
+                break
+    # open up hdf5 file
+    # make group train
+    # make two datasets, inpts, trgts
+    for t in xrange(totals):
+        p1, p2 = positives[t]
+        ins[4*t,:] = inpts[p1]
+        ins[4*t+1,:] = store[p2]
+        trgts[4*t] = 1
+        trgts[4*t+1] = 1
+        n1, n2 = negatives[t]
+        ins[4*t+2,:] = inpts[n1]
+        ins[4*t+3,:] = inpts[n2]
+        trgts[4*t+2] = 0
+        trgts[4*t+3] = 0
 
 
 def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
