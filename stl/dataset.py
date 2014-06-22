@@ -200,7 +200,7 @@ def gray_store(store="stl_96x96_train.h5",
     print "Wrote store to", fname
 
 
-def pair_store(store, ):
+def pair_store(store, fname, pairs):
     """
     Generate positive (same class) and negative pairs of images.
 
@@ -211,44 +211,102 @@ def pair_store(store, ):
     """
     from itertools import combinations as comb
 
+    totals = 10*pairs
+
     print "Pairing on store", store
+    print "Positive Pairs/Negative Pairs", totals, totals
+
     store = get_store(fname=store)
-    inpts = store['intps']
+    inpts = store['inpts']
     lbls = store['trgts']
 
-    # stl-10 has 10 classes
     positives = []
     classes = {}
+    # stl-10 has 10 classes
     for c in xrange(10):
         idx = np.argwhere(lbls[:]==c).ravel()
         classes[c] = idx
-        # shuffle indices?
-        pairs_c = comb(idx, 2)
-        for j, p in enumerate(pairs_c):
-            positives.append(p)
-    # shuffle positives
+        cnt = 0
+        while True:
+            p1 = np.random.randint(idx.shape[0])
+            p2 = np.random.randint(idx.shape[0])
+            if p1 == p2:
+                continue
+            # get actual indices
+            p1 = idx[p1]
+            p2 = idx[p2]
+
+            if p1 > p2:
+                p1, p2 = p2, p1
+            
+            if (p1, p2) in positives:
+                continue
+            
+            positives.append((p1, p2))
+            
+            cnt = cnt + 1
+            if cnt == pairs:
+                print "Done with class", c
+                print "Current shape of positives:", len(positives)
+                break
+    # final shuffle
+    helpers.shuffle_list(positives)
+
     negatives = []
     for t in xrange(totals):
         # get c1, c2, two different classes
-        c1 = np.random.random_integers(10)
+        c1 = np.random.randint(10)
         c2 = 0
         while True:
-            c2 = np.random.random_integers(10)
+            c2 = np.random.randint(10)
             if c1 != c2:
                 break
         while True:
-            n1 = sample(classes[c1].shape[0])
-            n2 = sample(classes[c2].shape[0])
+            n1 = np.random.randint(classes[c1].shape[0])
+            n2 = np.random.randint(classes[c2].shape[0])
+            n1 = classes[c1][n1]
+            n2 = classes[c2][n2]
+
+            if n1 > n2:
+                n1, n2 = n2, n1
+            
             if (n1, n2) not in negatives:
                 negatives.append((n1, n2))
                 break
+    print "Negatives are", len(negatives)
+    # Check if everything is correct:
+    # Positives: Pairs of same class, ordered, no duplicates.
+    print "Check pairings ..."
+    for p in positives:
+        p1, p2 = p
+        assert lbls[p1] == lbls[p2], "Different classes %d, %d"%(lbls[p1], lbls[p2]) 
+        if p1 > p2:
+            print "MISTAKE: p1 > p2", p1, p2
+            assert False
+    _tmp = set(positives)
+    assert len(_tmp) == len(positives), "Duplicates in positive?"
+    print "Positives ok ..."
+    for n in negatives:
+        n1, n2 = n
+        assert lbls[n1] != lbls[n2], "Same classes %d, %d"%(lbls[n1], lbls[n2]) 
+        if n1 > n2:
+            print "MISTAKE: n1 > n2", n1, n2
+            assert False
+    _tmp = set(negatives)
+    assert len(_tmp) == len(negatives), "Duplicates in negatives?"
+    print "Negatives ok ..."
+
+    print "Write to h5."
     # open up hdf5 file
-    # make group train
-    # make two datasets, inpts, trgts
+    h5f = h5py.File(fname, "w")
+    print "Created hdf5 file", h5f
+    grp = h5f.create_group("train")
+    ins = grp.create_dataset(name="inpts", shape=(4*totals, patch_x*patch_y), dtype=np.float32)
+    trgts = grp.create_dataset(name="trgts", shape=(4*totals,), dtype=np.int)
     for t in xrange(totals):
         p1, p2 = positives[t]
         ins[4*t,:] = inpts[p1]
-        ins[4*t+1,:] = store[p2]
+        ins[4*t+1,:] = inpts[p2]
         trgts[4*t] = 1
         trgts[4*t+1] = 1
         n1, n2 = negatives[t]
