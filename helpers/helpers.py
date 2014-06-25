@@ -670,17 +670,27 @@ def _pyramid(store, key, new, pars):
 
     """
     # this needs the cv module from osdf.
-    chunk, schema, depth = pars[0], pars[1], pars[2]
-    
+    chunk, schema, params = pars[0], pars[1], pars[2]
+
+    depth = 0
     if schema is "Laplace":
         from osdfcv.pyramid.laplacian import build_pil
         build_pyr = build_pil
+        depth = params[0]
     elif schema is "LCN":
-        build_pyr = None
+        from osdfcv.pyramid.lcn import build_pil
+        depth, width, sigma = params
+        shape = store[key].shape
+        lcns = _build_lcns(shape, depth, width, sigma)
+        from functools import partial
+        build_pyr = partial(build_pil, lcns=lcns)
     elif schema is "Fovea":
-        build_pyr = None
+        from osdfcv.pyramid.fovea import build
+        build_pyr = build
     else:
         assert False, "Don't know pyramid schmema %s"%schema
+
+    assert depth > 0, "Need a decent depth: %d"%depth
 
     dsets = []
     dtype = store[key].dtype
