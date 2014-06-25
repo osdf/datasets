@@ -674,6 +674,13 @@ def _pyramid(store, key, new, pars):
     
     if schema is "Laplace":
         from osdfcv.pyramid.laplacian import build_pil
+        build_pyr = build_pil
+    elif schema is "LCN":
+        build_pyr = None
+    elif schema is "Fovea":
+        build_pyr = None
+    else:
+        assert False, "Don't know pyramid schmema %s"%schema
 
     dsets = []
     dtype = store[key].dtype
@@ -686,7 +693,7 @@ def _pyramid(store, key, new, pars):
     k = 0 # global counter, not nice
     for i in xrange(0, store[key].shape[0], chunk):
         for l in store[key][i:i+chunk]:
-            pyramid = build_pil(l.reshape(dx, dx), depth)
+            pyramid = build_pyr(l.reshape(dx, dx), depth)
             for j, img in enumerate(pyramid):
                 dsets[j][k] = img.ravel()
             k = k + 1
