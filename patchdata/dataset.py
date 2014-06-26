@@ -579,21 +579,30 @@ def zeroone_group(store, chunk=512, group=["match", "non-match"], cache=False):
     return zo 
 
 
-def pyramid_store(store, schema="Laplace", depth=3, chunk=512, cache=False, exclude=[None], verbose=True):
+def pyramid_store(store, schema="Laplace", params=[3], chunk=512, cache=False, exclude=[None], verbose=True):
     """A new store that contains pyramid images from _store_.
     """
     if verbose:
-        print "Pyramid store", store, "with depth, schema:", depth, schema
+        print "Pyramid store", store, "with params (depth is first!), schema:", params, params[0], schema
     sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(schema) + str(depth) + str(chunk))
-    name = name.hexdigest()[:8] + ".lapy.h5"
+    name = hashlib.sha1(sfn + str(schema) + str(params) + str(chunk))
+    if schema == "Laplace":
+        ending = ".lapy.h5"
+    elif schema == "LCN":
+        ending = ".lcnpy.h5"
+    elif schema == "Fovea":
+        ending = ".fovpy.h5"
+    else:
+        assert False, "Unkown pyramid schema %s"%schema
+
+    name = name.hexdigest()[:8] + ending
     if cache is True and exists(name):
         print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     print "No cache, writing to", name
     pyr = h5py.File(name, 'w')
-    helpers.pyramid(store, pyr, chunk=chunk, schema=schema, depth=depth, exclude=exclude)
+    helpers.pyramid(store, pyr, chunk=chunk, schema=schema, params=params, exclude=exclude)
     pyr.attrs["Pyramid"] = "from " + str(store.filename)
     return pyr
 

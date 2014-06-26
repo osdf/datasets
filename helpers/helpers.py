@@ -8,8 +8,6 @@ import numpy as np
 import scipy.linalg as la
 import h5py
 from time import strftime
-import theano
-import theano.tensor as T
 
 try:
     import Image as img
@@ -303,11 +301,11 @@ def stationary(store, new, chunk=512, eps=1e-8, C=1., div=1., exclude=[None]):
     apply_to_store(store, new, _stationary, pars, exclude=exclude)
 
 
-def pyramid(store, new, chunk=512, schema="Laplace", depth=3, exclude=[None]):
+def pyramid(store, new, chunk=512, schema="Laplace", params=[3], exclude=[None]):
     """Generate a new store _new_ from _store_ by
     building a pyramid of type _schema_ with depth _depth_.
     """
-    pars = (chunk, schema, depth)
+    pars = (chunk, schema, params)
     apply_to_store(store, new, _pyramid, pars, exclude=exclude)
 
 
@@ -677,38 +675,44 @@ def _gaussian2d(width, sigma):
     grid = np.exp((grid**2)/const)
     gridT = grid.reshape(grid.size, 1)
     result = gridT*grid
-    return np.asarray(result/np.sum(result), dtype=theano.config.floatX)
+    return np.asarray(result/np.sum(result))
 
 
 def _lcn_filters(fmaps, depth, width, sigma):
     """
     """
+    import theano
+
     filters = np.zeros((fmaps, fmaps, width, width), dtype=theano.config.floatX)
     d2 = depth//2
     for i in xrange(fmaps):
         for j in xrange(i-d2, i+d2+1):
             if (j >= 0) and (j <fmaps):
-                filters[i, j, :, :] = gaussian2d(width, sigma)
+                filters[i, j, :, :] = _gaussian2d(width, sigma)
         fi_sum = np.sum(filters[i])
         filters[i] /= fi_sum
     return filters
 
 
-def _lcn(image, fmaps, pool_depth, width, sigma):
+def _lcn(image, im_shape, fmaps, pool_depth, width, sigma):
     """
     """
+    import theano
+    import theano.tensor as T
+    from theano.tensor.nnet import conv
+
     b, ch, r, c = image.shape
     border = width//2
-    filters = lcn_filters(fmaps, pool_depth, width, sigma) 
+    filters = _lcn_filters(fmaps, pool_depth, width, sigma) 
     filter_shape = filters.shape
     blurred_mean = conv.conv2d(input=image, filters=filters, 
-            image_shape=image_shape, filter_shape=filter_shape,
+            image_shape=im_shape, filter_shape=filter_shape,
             border_mode='full')
     image -= blurred_mean[:, :, border:-border, border:-border]
     
     image_sqr = T.sqr(image)
     blurred_sqr = conv.conv2d(input=image_sqr, filters=filters, 
-            image_shape=image_shape, filter_shape=filter_shape,
+            image_shape=im_shape, filter_shape=filter_shape,
             border_mode='full')
 
     div = T.sqrt(blurred_sqr[:, :, border:-border, border:-border])
@@ -723,13 +727,17 @@ def _build_lcns(shape, depth, width, sigma):
     Build _depth_ many local contrast normalizer
     for usage in a pyramid.
     """
+    import theano
+    import theano.tensor as T
+    print "[HELPERS] lcn with depth {0}, width {1}, sigma {2}".format(depth, width, sigma)
     lcns = []
     for i in xrange(depth):
-        x = T.matrix('x')
+        x = T.matrix("x{0}".format(i))
         x = x.reshape((1, 1, shape[0], shape[1]))
-        lcned = _lcn(x, fmaps=1, pool_detpth=1, width=width, sigma=sigma)
-        lcns.append(theano.function([x], lcned, allow_downcast=True))
+        lcned = _lcn(x, (1, 1, shape[0], shape[1]), fmaps=1, pool_depth=1, width=width, sigma=sigma)
+        lcns.append(theano.function([x], lcned, allow_input_downcast=True))
         shape = (shape[0]//2, shape[1]//2)
+    print "[HELPERS] lcn done."
     return lcns
 
 
@@ -754,6 +762,7 @@ def _pyramid(store, key, new, pars):
         build_pyr = partial(build_pil, lcns=lcns)
     elif schema is "Fovea":
         from osdfcv.pyramid.fovea import build
+        depth = params[0]
         build_pyr = build
     else:
         assert False, "Don't know pyramid schmema %s"%schema
