@@ -71,7 +71,7 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
     print "Wrote", dataset, "to", fname, f
 
 
-def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path, tag=None):
+def build_evaluate_store(store, dataset=dataset, pair_list=_default_pairings, path=_default_path, tag=None):
     """Put matching/non-matching pairs into a hdf5.
 
     There is one hdf5 per dataset, with the available number of pairs 
@@ -105,6 +105,38 @@ def build_evaluate_store(store, pair_list=_default_pairings, path=_default_path,
         f.attrs["patch_shape"] = (patch_y, patch_x)
         f.attrs["pairs"] = pair_list
         f.close()
+
+
+def build_supervised_store(dataset, sz):
+    """Helper function for building a (flat) store for supervised training
+    on 'dataset'. It has _sz_ many pairs of matches and _sz_ many pairs
+    of non-matches.
+    """
+    store = get_store()
+    tag = "supervised_{0}".format(sz)
+    fname = "supervised_{0}_evaluate_{1}_64x64.h5".format(sz, dataset)
+    build_evaluate_store(store, dataset=[dataset], pair_list=[sz], tag=tag)
+    store.close()
+
+    # fuse this store
+    store = get_store(fname)
+    fused = fuse_store(store, sz)
+    return fused
+
+
+def build_supervised_scale_store(dataset, sz, scale="Laplace", depth=3, fused=None):
+    """Helper function for building a (flat) store for supervised training
+    on 'dataset' with scale information. It has _sz_ many pairs of matches and _sz_ many pairs
+    of non-matches.
+    """
+    print "Building store for scale {0}, with {1} scales".format(scale, depth)
+
+    if fused is None:
+        print "Need to build scaled store first. This takes time ..."
+        fused = build_supervised_store(dataset, sz)
+
+    scale_st = pyramid_store(fused, schema=scale, parms=[depth], exclude=['targets'])
+    return scale_st
 
 
 def info(dataset=dataset):
