@@ -701,7 +701,6 @@ def _lcn(image, im_shape, fmaps, pool_depth, width, sigma):
     import theano.tensor as T
     from theano.tensor.nnet import conv
 
-    b, ch, r, c = image.shape
     border = width//2
     filters = _lcn_filters(fmaps, pool_depth, width, sigma) 
     filter_shape = filters.shape
@@ -757,6 +756,8 @@ def _pyramid(store, key, new, pars):
         from osdfcv.pyramid.lcn import build_pil
         depth, width, sigma = params
         shape = store[key].shape
+        dx = int(np.sqrt(shape[1]))
+        shape = (dx, dx)
         lcns = _build_lcns(shape, depth, width, sigma)
         from functools import partial
         build_pyr = partial(build_pil, lcns=lcns)
