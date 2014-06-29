@@ -788,6 +788,9 @@ def _pyramid(store, key, new, pars):
 
     for attrs in store.attrs:
         new.attrs[attrs] = store.attrs[attrs]
+    for d in xrange(depth):
+        dsets[d].attrs["patch_shape"] = (dx, dx)
+        dx = dx/2
     new.attrs['depth'] = depth
     new.attrs['schema'] = depth
 

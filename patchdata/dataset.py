@@ -114,14 +114,21 @@ def build_supervised_store(dataset, sz):
     """
     store = get_store()
     tag = "supervised_{0}".format(sz)
-    fname = "supervised_{0}_evaluate_{1}_64x64.h5".format(sz, dataset)
-    build_evaluate_store(store, dataset=[dataset], pair_list=[sz], tag=tag)
+    if type(dataset) is str:
+        dataset = [dataset]
+    build_evaluate_store(store, dataset=dataset, pair_list=[sz], tag=tag)
     store.close()
 
-    # fuse this store
-    store = get_store(fname)
-    fused = fuse_store(store, sz)
-    return fused
+    fsd = []
+    for ds in dataset:
+        fname = "supervised_{0}_evaluate_{1}_64x64.h5".format(sz, dataset)
+        # fuse this store
+        store = get_store(fname)
+        fused = fuse_store(store, sz)
+        print "Probably rename store:", fused
+        fsd.append(fused)
+    print "Remember to close stores in returned list!", fsd
+    return fsd
 
 
 def build_supervised_scale_store(dataset, sz, scale="Laplace", depth=3, fused=None):
@@ -135,8 +142,16 @@ def build_supervised_scale_store(dataset, sz, scale="Laplace", depth=3, fused=No
         print "Need to build scaled store first. This takes time ..."
         fused = build_supervised_store(dataset, sz)
 
-    scale_st = pyramid_store(fused, schema=scale, parms=[depth], exclude=['targets'])
-    return scale_st
+    if type(fused) is not list:
+        fused = [fused]
+    
+    scaled = []
+    for fsd in fused:
+        scale_st = pyramid_store(fsd, schema=scale, parms=[depth], exclude=['targets'])
+        print "Probably reanme store:", scale_st
+        scaled.append(scale_st)
+    print "Remember to close stores in returned list!", scaled
+    return scaled
 
 
 def info(dataset=dataset):
