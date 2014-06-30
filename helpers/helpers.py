@@ -195,7 +195,7 @@ def apply_to_group(store, new, method, pars, group):
     """
     for key in store.keys():
         if key in group:
-            method(store, new, pars)
+            method(store, key, new, pars)
             return
         else:
             if type(store[key]) is h5py.Group:
@@ -450,7 +450,7 @@ def concat(store, new, chunk, grp):
     Concatenate all datasets below group grp into one dataset ->
     substitute group grp by a dataset.
     """
-    pars = (chunk)
+    pars = (chunk,)
     apply_to_group(store, new, _concat, pars, grp)
 
 
@@ -850,21 +850,21 @@ def _pyramid_fuse(store, key, new, pars):
 def _concat(store, key, new, pars):
     """
     """
-    chunk, name = pars[0], pars[1]
+    chunk = pars[0]
 
     n = 0
     _tmp = []
     dsets = []
     d = 0
     for ds in store[key]:
-        dsets.append(ds)
-        d = d + ds.shape[1]
+        dsets.append(store[key][ds])
+        d = d + store[key][ds].shape[1]
 
     n = dsets[0].shape[0]
     for ds in dsets[1:]:
         assert n == ds.shape[0], "Concatenate needs same number samples for all datasets."
 
-    dset = new.create_dataset(name=name, shape=(n, d), dtype=dsets[0].dtype)
+    dset = new.create_dataset(name=key, shape=(n, d), dtype=dsets[0].dtype)
 
     for i in xrange(0, n, chunk):
         j = 0
