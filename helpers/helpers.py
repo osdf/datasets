@@ -805,7 +805,7 @@ def _pyramid(store, key, new, pars):
         dsets[d].attrs["patch_shape"] = (dx, dx)
         dx = dx/2
     grp.attrs['depth'] = depth
-    grp.attrs['schema'] = depth
+    grp.attrs['schema'] = schema
 
 
 def _pyramid_fuse(store, key, new, pars):
