@@ -107,31 +107,37 @@ def build_evaluate_store(store, dataset=dataset, pair_list=_default_pairings, pa
         f.close()
 
 
-def build_supervised_store(dataset, sz):
+def build_supervised_store(dataset=dataset, sz=250000, pairings=True):
     """Helper function for building a (flat) store for supervised training
     on 'dataset'. It has _sz_ many pairs of matches and _sz_ many pairs
-    of non-matches.
+    of non-matches. If _pairings_ is True, first build the split match/non-match
+    base hdf5 for _dataset_.
     """
-    store = get_store()
-    tag = "supervised_{0}".format(sz)
-    if type(dataset) is str:
-        dataset = [dataset]
-    build_evaluate_store(store, dataset=dataset, pair_list=[sz], tag=tag)
-    store.close()
+    print "Building supervised flat store for", dataset, sz
+
+    if pairings:
+        print "Building non-flat base store first."
+        store = get_store()
+        tag = "supervised_{0}".format(sz)
+        if type(dataset) is str:
+            dataset = [dataset]
+        build_evaluate_store(store, dataset=dataset, pair_list=[sz], tag=tag)
+        store.close()
 
     fsd = []
     for ds in dataset:
-        fname = "supervised_{0}_evaluate_{1}_64x64.h5".format(sz, dataset)
+        fname = "supervised_{0}_evaluate_{1}_64x64.h5".format(sz, ds)
         # fuse this store
         store = get_store(fname)
-        fused = fuse_store(store, sz)
-        print "Probably rename store:", fused
+        fname = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, ds)
+        fused = fuse_store(store, str(sz), fname=fname)
         fsd.append(fused)
     print "Remember to close stores in returned list!", fsd
+    print "Probably remove unnececssary intermediate stores."
     return fsd
 
 
-def build_supervised_scale_store(dataset, sz, scale="Laplace", depth=3, fused=None):
+def build_supervised_scale_store(dataset, sz, scale="laplace", depth=3, fused=None):
     """Helper function for building a (flat) store for supervised training
     on 'dataset' with scale information. It has _sz_ many pairs of matches and _sz_ many pairs
     of non-matches.
@@ -147,8 +153,8 @@ def build_supervised_scale_store(dataset, sz, scale="Laplace", depth=3, fused=No
     
     scaled = []
     for fsd in fused:
-        scale_st = pyramid_store(fsd, schema=scale, parms=[depth], exclude=['targets'])
-        print "Probably reanme store:", scale_st
+        scale_st = pyramid_store(fsd, schema=scale, params=[depth], 
+                exclude=['targets'])
         scaled.append(scale_st)
     print "Remember to close stores in returned list!", scaled
     return scaled
@@ -376,14 +382,18 @@ def crop_store(store, x, y, dx, dy, cache=False, verbose=True):
     return crop
 
 
-def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
+def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False,
+        exclude=[None], verbose=True, fname=None):
     """A new store that contains stationary images from _store_.
     """
     if verbose:
-        print "Stationarize store", store, "with eps, C, div" , eps, C, div
-    sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
-    name = name.hexdigest()[:8] + ".stat.h5"
+        print "Stationarize store", store, "with eps, C, div" , eps, C, div, fname
+    if fname is None:
+        sfn = store.filename.split(".")[0]
+        name = hashlib.sha1(sfn + str(C) + str(eps) + str(chunk))
+        name = name.hexdigest()[:8] + ".stat.h5"
+    else:
+        name = fname
     if cache is True and exists(name):
         print "Using cached version ", name
         return h5py.File(name, 'r+')
@@ -395,15 +405,19 @@ def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, excl
     return stat
 
 
-def fuse_store(store, key, groups=["match", "non-match"], labels=[1,0], stride=2, cache=False):
+def fuse_store(store, key, groups=["match", "non-match"], labels=[1,0], 
+        stride=2, cache=False, fname=None):
     """
     A new store that fuses images from 'match'/'non-match' parts
     into one main store.
     """
     print "Fuse store", store, ", key", str(key)
-    sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(groups) + str(stride))
-    name = name.hexdigest()[:8] + ".fuse.h5"
+    if fname is None:
+        sfn = store.filename.split(".")[0]
+        name = hashlib.sha1(sfn + str(groups) + str(stride))
+        name = name.hexdigest()[:8] + ".fuse.h5"
+    else:
+        name = fname
     if cache is True and exists(name):
         print "Using cached version ", name
         return h5py.File(name, 'r+')
@@ -645,23 +659,28 @@ def zeroone_group(store, chunk=512, group=["match", "non-match"], cache=False):
     return zo 
 
 
-def pyramid_store(store, schema="Laplace", params=[3], chunk=512, cache=False, exclude=[None], verbose=True):
+def pyramid_store(store, schema="laplace", params=[3], chunk=512, cache=False, 
+        exclude=[None], verbose=True, fname=None):
     """A new store that contains pyramid images from _store_.
     """
     if verbose:
         print "Pyramid store", store, "with params (depth is first!), schema:", params, params[0], schema
-    sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(schema) + str(params) + str(chunk))
-    if schema == "Laplace":
+    
+    if schema == "laplace":
         ending = ".lapy.h5"
-    elif schema == "LCN":
+    elif schema == "lcn":
         ending = ".lcnpy.h5"
-    elif schema == "Fovea":
+    elif schema == "fovea":
         ending = ".fovpy.h5"
     else:
         assert False, "Unkown pyramid schema %s"%schema
 
-    name = name.hexdigest()[:8] + ending
+    if fname is None:
+        sfn = store.filename.split(".")[0]
+        name = hashlib.sha1(sfn + str(schema) + str(params) + str(chunk))
+        name = name.hexdigest()[:8] + ending
+    else:
+        name = fname
     if cache is True and exists(name):
         print "Using cached version ", name
         return h5py.File(name, 'r+')
@@ -673,7 +692,7 @@ def pyramid_store(store, schema="Laplace", params=[3], chunk=512, cache=False, e
     return pyr
 
 
-def pyramidfuse_store(store, schema="Laplace", depth=(), chunk=512, cache=False, exclude=[None], verbose=True):
+def pyramidfuse_store(store, schema="laplace", depth=(), chunk=512, cache=False, exclude=[None], verbose=True):
     """A new store that contains pyramid images from _store_.
     """
     if verbose:

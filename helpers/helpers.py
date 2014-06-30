@@ -303,7 +303,7 @@ def stationary(store, new, chunk=512, eps=1e-8, C=1., div=1., exclude=[None]):
     apply_to_store(store, new, _stationary, pars, exclude=exclude)
 
 
-def pyramid(store, new, chunk=512, schema="Laplace", params=[3], exclude=[None]):
+def pyramid(store, new, chunk=512, schema="laplace", params=[3], exclude=[None]):
     """Generate a new store _new_ from _store_ by
     building a pyramid of type _schema_ with depth _depth_.
     """
@@ -311,7 +311,7 @@ def pyramid(store, new, chunk=512, schema="Laplace", params=[3], exclude=[None])
     apply_to_store(store, new, _pyramid, pars, exclude=exclude)
 
 
-def pyramid_fuse(store, new, chunk=512, schema="Laplace", depth=(), exclude=[None]):
+def pyramid_fuse(store, new, chunk=512, schema="laplace", depth=(), exclude=[None]):
     """Generate a new store _new_ from _store_ by
     building a pyramid of type _schema_ with depth _depth_.
     """
@@ -759,11 +759,11 @@ def _pyramid(store, key, new, pars):
     chunk, schema, params = pars[0], pars[1], pars[2]
 
     depth = 0
-    if schema is "Laplace":
+    if schema is "laplace":
         from osdfcv.pyramid.laplacian import build_pil
         build_pyr = build_pil
         depth = params[0]
-    elif schema is "LCN":
+    elif schema is "lcn":
         from osdfcv.pyramid.lcn import build_pil
         depth, width, sigma = params
         shape = store[key].shape
@@ -772,7 +772,7 @@ def _pyramid(store, key, new, pars):
         lcns = _build_lcns(shape, depth, width, sigma)
         from functools import partial
         build_pyr = partial(build_pil, lcns=lcns)
-    elif schema is "Fovea":
+    elif schema is "fovea":
         from osdfcv.pyramid.fovea import build
         depth = params[0]
         build_pyr = build
@@ -817,7 +817,7 @@ def _pyramid_fuse(store, key, new, pars):
     chunk, schema, shapes = pars[0], pars[1], pars[2]
     depth = len(shapes)
 
-    if schema is "Laplace":
+    if schema is "laplace":
         from osdfcv.pyramid.laplacian import build_pil
 
     dtype = store[key].dtype
