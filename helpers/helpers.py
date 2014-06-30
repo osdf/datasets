@@ -205,6 +205,8 @@ def apply_to_group(store, new, method, pars, group):
                     new.attrs[attrs] = store.attrs[attrs]
                 for attrs in grp.attrs.keys():
                     new.attrs[attrs] = grp.attrs[attrs]
+            elif type(store[key]) is h5py.Dataset:
+                    clone_dataset(store, key, new)
 
 
 def apply_to_store(store, new, method, pars, exclude=[None]):
@@ -441,6 +443,15 @@ def global_div(store, new, chunk, div, exclude=[None]):
     """
     pars = (chunk, div)
     apply_to_store(store, new, _global_div, pars, exclude=exclude)
+
+
+def concat(store, new, chunk, grp):
+    """
+    Concatenate all datasets below group grp into one dataset ->
+    substitute group grp by a dataset.
+    """
+    pars = (chunk)
+    apply_to_group(store, new, _concat, pars, grp)
 
 
 def _binary_inv(store, key, new, chunk):
@@ -770,12 +781,14 @@ def _pyramid(store, key, new, pars):
 
     assert depth > 0, "Need a decent depth: %d"%depth
 
+    # collect inputs in group
+    grp = new.create_group(name=key)
     dsets = []
     dtype = store[key].dtype
     shape = store[key].shape
     dx = int(np.sqrt(shape[1]))
     for d in xrange(depth):
-        dsets.append(new.create_dataset(name=key+str(d), shape=shape, dtype=dtype))
+        dsets.append(grp.create_dataset(name=key+str(d), shape=shape, dtype=dtype))
         shape = (shape[0], shape[1]/4)
 
     k = 0 # global counter, not nice
@@ -787,12 +800,12 @@ def _pyramid(store, key, new, pars):
             k = k + 1
 
     for attrs in store.attrs:
-        new.attrs[attrs] = store.attrs[attrs]
+        grp.attrs[attrs] = store.attrs[attrs]
     for d in xrange(depth):
         dsets[d].attrs["patch_shape"] = (dx, dx)
         dx = dx/2
-    new.attrs['depth'] = depth
-    new.attrs['schema'] = depth
+    grp.attrs['depth'] = depth
+    grp.attrs['schema'] = depth
 
 
 def _pyramid_fuse(store, key, new, pars):
@@ -832,6 +845,33 @@ def _pyramid_fuse(store, key, new, pars):
         new.attrs[attrs] = store.attrs[attrs]
     new.attrs['depth'] = depth
     new.attrs['schema'] = schema
+
+
+def _concat(store, key, new, pars):
+    """
+    """
+    chunk, name = pars[0], pars[1]
+
+    n = 0
+    _tmp = []
+    dsets = []
+    d = 0
+    for ds in store[key]:
+        dsets.append(ds)
+        d = d + ds.shape[1]
+
+    n = dsets[0].shape[0]
+    for ds in dsets[1:]:
+        assert n == ds.shape[0], "Concatenate needs same number samples for all datasets."
+
+    dset = new.create_dataset(name=name, shape=(n, d), dtype=dsets[0].dtype)
+
+    for i in xrange(0, n, chunk):
+        j = 0
+        for ds in dsets:
+            jj = ds.shape[1]
+            dset[i:i+chunk, j:jj] = ds[i:i+chunk]
+            j = jj
 
 
 def _divisive(store, key, new, pars):

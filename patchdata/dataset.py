@@ -436,6 +436,25 @@ def merge_store(store1, store2, stride=4, cache=False):
     return merge
 
 
+def concat_store(store, group, chunk=512, cache=False, exclude=[None], verbose=True):
+    """A new store that contains stationary images from _store_.
+    """
+    if verbose:
+        print "Concatenate store", store, "with group", group 
+    sfn = store.filename.split(".")[0]
+    name = hashlib.sha1(sfn + str(group) + str(chunk))
+    name = name.hexdigest()[:8] + ".concat.h5"
+    if cache is True and exists(name):
+        print "Using cached version ", name
+        return h5py.File(name, 'r+')
+
+    print "No cache, writing to", name
+    conc = h5py.File(name, 'w')
+    helpers.concat(store, conc, chunk=chunk, grp=group)
+    conc.attrs["Concatenated"] = "from " + str(store.filename)
+    return conc
+
+
 def row0_store(store, chunk=512, cache=False, verbose=True):
     """A new store that contains 0-mean images from _store_.
     """
