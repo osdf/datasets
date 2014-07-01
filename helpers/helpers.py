@@ -196,7 +196,6 @@ def apply_to_group(store, new, method, pars, group):
     for key in store.keys():
         if key in group:
             method(store, key, new, pars)
-            return
         else:
             if type(store[key]) is h5py.Group:
                 grp = new.create_group(name=key)

@@ -449,7 +449,24 @@ def merge_store(store1, store2, stride=4, cache=False):
     merge.attrs["Merged"] = "from " + sfn1 + ", " + sfn2
     return merge
 
-
+# store = ds.get_store()
+# select = ds.select(store, dataset=["liberty"], index_set=[(450000, 32)])
+# Rename to liberty.select.h5 afterwards
+# pyr = ds.pyramid_store(select, schema="laplace")
+# Rename to liberty_laplace.h5
+# select.close()
+# rsz = ds.resize_store(pyr, (16, 16))
+# Delete this file afterwards
+# pyr.close()
+# # First stationary
+# stat1 = ds.stationary_store(rsz)
+# Delete this file afterwards
+# rsz.close()
+# concat = ds.concat_store(stat1, group="inputs")
+# Delete this file afterwards
+# stat1.close()
+# stat2 = ds.stationary_store(concat)
+# Rename to liberty_lapalce_stat_16.h5
 def concat_store(store, group, chunk=512, cache=False, exclude=[None], verbose=True):
     """A new store that contains stationary images from _store_.
     """
