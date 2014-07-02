@@ -869,8 +869,8 @@ def _concat(store, key, new, pars):
         j = 0
         for ds in dsets:
             jj = ds.shape[1]
-            dset[i:i+chunk, j:jj] = ds[i:i+chunk]
-            j = jj
+            dset[i:i+chunk, j:j+jj] = ds[i:i+chunk]
+            j = j + jj
 
 
 def _divisive(store, key, new, pars):
