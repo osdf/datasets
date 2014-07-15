@@ -6,6 +6,13 @@ of the basic aspects of the patchdata set:
     - resizing patches (works only on available stores)
     - randomly selecting patches
     - printing general information
+
+Start with build_store(origin="train", consecutive=False)
+same for origin="test". Then merge_train_test(). And
+then gray_store() on the merged store. (No merging if
+you need to keep train_rgb and test_rgb seperated --
+then simply run gray_store on both). Don't forget to
+resize and normalize properly.
 """
 
 
@@ -296,9 +303,12 @@ def pair_store(store, fname, pairs):
     h5f = h5py.File(fname, "w")
     print "Created hdf5 file", h5f
     grp = h5f.create_group("train")
+    grp.attrs["patch_shape"] = (patch_x, patch_y)
+
     ins = grp.create_dataset(name="inpts", shape=(4*totals, patch_x*patch_y), dtype=np.float32)
     ins.attrs["patch_shape"] = (patch_x, patch_y)
     trgts = grp.create_dataset(name="trgts", shape=(4*totals,), dtype=np.int)
+    
     for t in xrange(totals):
         p1, p2 = positives[t]
         ins[4*t,:] = inpts[p1]
@@ -310,6 +320,7 @@ def pair_store(store, fname, pairs):
         ins[4*t+3,:] = inpts[n2]
         trgts[4*t+2] = 0
         trgts[4*t+3] = 0
+    h5f.close()
 
 
 def stationary_store(store, eps=1e-8, C=1., div=1., chunk=512, cache=False, exclude=[None], verbose=True):
