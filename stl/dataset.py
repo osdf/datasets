@@ -203,11 +203,6 @@ def gray_store(store="stl_96x96_train.h5",
 def pair_store(store, fname, pairs):
     """
     Generate positive (same class) and negative pairs of images.
-
-    get all indices of class i.
-    shuffle every list.
-    for every class i, get all x-many 2 pairs of indices.
-    randomly zip over all class i pairs.
     """
     from itertools import combinations as comb
 
@@ -256,11 +251,11 @@ def pair_store(store, fname, pairs):
     for t in xrange(totals):
         # get c1, c2, two different classes
         c1 = np.random.randint(10)
-        c2 = 0
+        c2 = np.random.randint(10)
         while True:
-            c2 = np.random.randint(10)
             if c1 != c2:
                 break
+            c2 = np.random.randint(10)
         while True:
             n1 = np.random.randint(classes[c1].shape[0])
             n2 = np.random.randint(classes[c2].shape[0])
@@ -302,6 +297,7 @@ def pair_store(store, fname, pairs):
     print "Created hdf5 file", h5f
     grp = h5f.create_group("train")
     ins = grp.create_dataset(name="inpts", shape=(4*totals, patch_x*patch_y), dtype=np.float32)
+    ins.attrs["patch_shape"] = (patch_x, patch_y)
     trgts = grp.create_dataset(name="trgts", shape=(4*totals,), dtype=np.int)
     for t in xrange(totals):
         p1, p2 = positives[t]
