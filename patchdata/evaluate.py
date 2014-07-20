@@ -41,12 +41,23 @@ def chi_dist(v1, v2):
 
 def jsd(v1, v2):
     """
-    Jensen Shannon divergence.
+    Jensen Shannon divergence for bernoulli random vectors.
+    (Formula is not correct for arbitrary RVs.)
     """
     sumv = (v1+v2)/2.
     t1 = v1*np.log((v1/(sumv+SMALL))+SMALL) + (1-v1)*np.log( (1-v1)/(1-sumv+SMALL)+SMALL)
     t2 = v2*np.log(v2/(sumv+SMALL)+SMALL) + (1-v2)*np.log( (1-v2)/(1-sumv+SMALL)+SMALL)
     return np.sqrt(np.abs(0.5*np.sum(t1) + 0.5*np.sum(t2)))
+
+
+def l2_dist_half(v1, v2):
+    """
+    Only take first.
+    """
+    shape = v1.size
+    v1h = v1[:shape/2]
+    v2h = v2[:shape/2]
+    return np.sqrt(np.sum((v1h - v2h)**2))
 
 
 def prod(v1, v2):
@@ -59,6 +70,7 @@ def prod(v1, v2):
 
 _dist_table = {
     "L2": l2_dist
+    ,"L2H": l2_dist_half
     ,"L1": l1_dist
     ,"COSINE":cosine_dist
     ,"HAMMING": ham_dist
