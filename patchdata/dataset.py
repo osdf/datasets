@@ -17,6 +17,8 @@ from os.path import dirname, join, exists
 import hashlib
 import numpy as np
 import h5py
+import scipy.ndimage as simg
+
 
 try:
     import Image as img
@@ -776,6 +778,29 @@ def _build_pairing_store(group, name, pairings, store):
 
 def _patches_from_pair(pair, store):
     return store[pair[0],:], store[pair[1],:]
+
+
+def phantom(x, nmbrs, deltax, deltay, scale, rot, dimx, dimy):
+    """Generate _phantoms_ many phantom images of _x_
+    """
+    phantoms = np.zeros((nmbrs, dimx*dimy))
+    for i in xrange(nmbrs):
+        dx = np.random.randint(-deltax, deltax+1)
+        dy = np.random.randint(-deltay, deltay+1)
+        sc = np.random.randint(-scale, scale+1)
+        rot = np.random.randint(-rot, rot+1)
+        print dx, dy, sc, rot
+
+        pic = simg.shift(x, (dy, dx), mode='reflect')
+        pic = simg.rotate(pic, rot, mode='reflect')
+        shape = pic.shape
+        ox, oy = shape[0]//2, shape[1]//2
+        xmin, xmax = ox - 16 + sc//2, ox + 16 - sc//2
+        ymin, ymax = oy - 16 + sc//2, oy + 16 - sc//2
+        pic = pic[xmin:xmax, ymin:ymax]
+        pic = simg.zoom(pic, (1.0*dimx)/(xmax-xmin))
+        phantoms[i, :] = pic.ravel()
+    return phantoms
 
 
 def flip_patches(patches):
