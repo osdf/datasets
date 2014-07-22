@@ -805,7 +805,7 @@ def build_phantom_store(store, dataset, index_set, nmbrs,
     grp.attrs["patch_shape"] = sel.attrs["patch_shape"]
 
     if nonmatch:
-        print "Positive and negative pairs -- dataset is named 'match'."
+        print "Positive and negative pairs -- positive dataset is named 'match'."
         mtch_name = "match"
     else:
         print "Only positive pairs -- dataset is named 'inputs'."
@@ -836,13 +836,13 @@ def build_phantom_store(store, dataset, index_set, nmbrs,
         print "Building negative pairs with a new selection store."
         sel = select(store, dataset=dataset, index_set=index_set, cache=False)
         shape = sel['train']['inputs'].shape
-        train = grp.create_dataset(name="non-match", shape=(shape[0]*nmbrs, dimx*dimy),
+        train = grp.create_dataset(name="non-match", shape=(2*shape[0]*nmbrs, dimx*dimy),
                 dtype=np.float32)
-        _nmbrs = int(sqrt(nmbrs))
+        _nmbrs = int(np.sqrt(nmbrs))
         assert _nmbrs**2 == nmbrs, "For negative matches, need a valid number of pairings."
 
         i = 0
-        for x in sel['train']['inputs']:
+        for elem in sel['train']['inputs']:
             x = elem.reshape(patch_x, patch_y)
             ph1 = phantom(x, _nmbrs, deltax, deltay, scale, rot=180, dimx=dimx, dimy=dimy)
             rnds = np.random.randint(0, shape[0], size=_nmbrs)
