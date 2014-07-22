@@ -584,6 +584,7 @@ def resize_store(store, shape, cache=False, exclude=[None], verbose=True):
     rsz.attrs["Resized"] = "from " + str(store.filename)
     return rsz
 
+
 def fward_store(store, fward, D, chunk=512, cache=False, exclude=[None], verbose=True):
     """
     """
@@ -780,6 +781,84 @@ def _patches_from_pair(pair, store):
     return store[pair[0],:], store[pair[1],:]
 
 
+def build_phantom_store(store, dataset, index_set, nmbrs,
+        deltax, deltay, scale, rot, dimx, dimy,
+        path=_default_path, nonmatch=False, tag=None):
+    """
+    """
+    print "Building phantom store out of {0}".format(dataset)
+    total = 0
+    for idx in index_set:
+        total = total+idx[0]
+    total = total*nmbrs
+
+    if tag is None:
+        tag = ""
+    else:
+        tag = "".join([tag, "_"])
+    fname = "".join(["phantom_", tag, str(total), '-', str(nmbrs), "_", "{0}x{1}.h5".format(dimx, dimy)])
+    f = h5py.File(join(path, fname), "w")
+    print "Writing phantom data to", f
+
+    sel = select(store, dataset=dataset, index_set=index_set, cache=False)
+    grp = f.create_group(name="train")
+    grp.attrs["patch_shape"] = sel.attrs["patch_shape"]
+
+    if nonmatch:
+        print "Positive and negative pairs -- dataset is named 'match'."
+        mtch_name = "match"
+    else:
+        print "Only positive pairs -- dataset is named 'inputs'."
+        mtch_name = "inputs"
+
+    # positive pair set is built always
+    shape = sel['train']['inputs'].shape
+    train = grp.create_dataset(name=mtch_name, shape=(2*shape[0]*nmbrs, dimx*dimy),
+            dtype=np.float32)
+    i = 0
+    for elem in sel['train']['inputs']:
+        x = elem.reshape(patch_x, patch_y)
+        ph = phantom(x, nmbrs, deltax, deltay, scale, rot, dimx, dimy)
+        # get inner original patch of x
+        ox, oy = x.shape[0]//2, x.shape[1]//2
+        xmin, xmax = ox - dimx//2, ox + dimx//2
+        ymin, ymax = oy - dimy//2, oy + dimy//2
+        tmp = x[xmin:xmax, ymin:ymax]
+        tmp = tmp.ravel()
+        for j, p in enumerate(ph):
+            train[i+2*j, :] = tmp
+            train[i+2*j+1,:] = p
+        i = i + 2*nmbrs
+    helpers._shuffle_pairs(train)
+    sel.close()
+    
+    if nonmatch:
+        print "Building negative pairs with a new selection store."
+        sel = select(store, dataset=dataset, index_set=index_set, cache=False)
+        shape = sel['train']['inputs'].shape
+        train = grp.create_dataset(name="non-match", shape=(shape[0]*nmbrs, dimx*dimy),
+                dtype=np.float32)
+        _nmbrs = int(sqrt(nmbrs))
+        assert _nmbrs**2 == nmbrs, "For negative matches, need a valid number of pairings."
+
+        i = 0
+        for x in sel['train']['inputs']:
+            x = elem.reshape(patch_x, patch_y)
+            ph1 = phantom(x, _nmbrs, deltax, deltay, scale, rot=180, dimx=dimx, dimy=dimy)
+            rnds = np.random.randint(0, shape[0], size=_nmbrs)
+            for j, p in enumerate(ph1):
+                for k, r in enumerate(rnds):
+                    tmp = sel['train']['inputs'][r]
+                    tmp = tmp.reshape(patch_x, patch_y)
+                    tmp = phantom(tmp, 1, deltax, deltay, scale, rot=180, dimx=dimx, dimy=dimy)
+                    train[i+2*(j*_nmbrs + k),:] = p
+                    train[i+2*(j*_nmbrs + k)+1,:] = tmp[0]
+            i = i + 2*nmbrs
+        helpers._shuffle_pairs(train)
+        sel.close()
+    f.close()
+
+
 def phantom(x, nmbrs, deltax, deltay, scale, rot, dimx, dimy):
     """Generate _phantoms_ many phantom images of _x_
     """
@@ -788,11 +867,10 @@ def phantom(x, nmbrs, deltax, deltay, scale, rot, dimx, dimy):
         dx = np.random.randint(-deltax, deltax+1)
         dy = np.random.randint(-deltay, deltay+1)
         sc = np.random.randint(-scale, scale+1)
-        rot = np.random.randint(-rot, rot+1)
-        print dx, dy, sc, rot
+        rt = np.random.randint(-rot, rot+1)
 
         pic = simg.shift(x, (dy, dx), mode='reflect')
-        pic = simg.rotate(pic, rot, mode='reflect')
+        pic = simg.rotate(pic, rt, mode='reflect')
         shape = pic.shape
         ox, oy = shape[0]//2, shape[1]//2
         xmin, xmax = ox - 16 + sc//2, ox + 16 - sc//2

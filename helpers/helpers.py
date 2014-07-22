@@ -28,7 +28,6 @@ def shuffle(store):
             print "...", store, key
             _shuffle(store[key])
 
-
 def _shuffle(store):
     """Shuffle rows inplace.
     _store_ has to behave like
@@ -41,6 +40,23 @@ def _shuffle(store):
         tmp = store[idx].copy()
         store[idx] = store[i].copy()
         store[i] = tmp
+
+
+def _shuffle_pairs(store):
+    """Shuffle rows pairwise inplace.
+    _store_ has to behave like
+    an numpy.array.
+    """
+    N, _ = store.shape
+    for i in xrange(N//2):
+        interval = N//2 - i
+        idx = i + np.random.randint(interval)
+        tmp1 = store[2*idx].copy()
+        tmp2 = store[2*idx+1].copy()
+        store[2*idx] = store[2*i].copy()
+        store[2*idx+1] = store[2*i+1].copy()
+        store[2*i] = tmp1
+        store[2*i+1] = tmp2
 
 
 def shuffle_list(lst):
