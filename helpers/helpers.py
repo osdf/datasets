@@ -59,6 +59,25 @@ def _shuffle_pairs(store):
         store[2*i+1] = tmp2
 
 
+def _shuffle_sync(store1, store2):
+    """Shuffle rows inplace, the same way in both stores.
+    _store1_ and _store2_ has to behave like
+    an numpy.array.
+    """
+    N, _ = store1.shape
+    assert N == store2.shape[0], "Stores need to be same length."
+    for i in xrange(N):
+        interval = N - i
+        idx = i + np.random.randint(interval)
+        tmp = store1[idx].copy()
+        store1[idx] = store1[i].copy()
+        store1[i] = tmp
+        # do same thing on store2, too
+        tmp = store2[idx].copy()
+        store2[idx] = store2[i].copy()
+        store2[i] = tmp
+
+
 def shuffle_list(lst):
     """Shuffle _lst_ 
     """

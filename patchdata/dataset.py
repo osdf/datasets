@@ -566,14 +566,18 @@ def double_store(store, chunk=512, cache=False, exclude=[None], verbose=True):
     return stat
 
 
-def resize_store(store, shape, cache=False, exclude=[None], verbose=True):
+def resize_store(store, shape, cache=False, exclude=[None], verbose=True, name=None):
     """A new store that contains resized images from _store_.
     """
     if verbose:
         print "Resizing store", store, "to new shape", shape
-    sfn = store.filename.split(".")[0]
-    name = hashlib.sha1(sfn + str(shape))
-    name = name.hexdigest()[:8] + ".resz.h5"
+    if name is None:
+        print "Generating store name by hashing."
+        sfn = store.filename.split(".")[0]
+        name = hashlib.sha1(sfn + str(shape))
+        name = name.hexdigest()[:8] + ".resz.h5"
+    else:
+        print "Store name is given:", name
     if cache is True and exists(name):
         if verbose: print "Using cached version ", name
         return h5py.File(name, 'r+')
@@ -783,9 +787,12 @@ def _patches_from_pair(pair, store):
 
 def build_phantom_store(store, dataset, index_set, nmbrs,
         deltax, deltay, scale, rot, dimx, dimy,
-        path=_default_path, nonmatch=False, tag=None):
+        path=_default_path, nonmatch=False, label=False, tag=None):
     """
     """
+    if nonmatch and label:
+        assert False, "Negative pairing AND classes is not possible."
+
     print "Building phantom store out of {0}".format(dataset)
     total = 0
     for idx in index_set:
@@ -813,8 +820,18 @@ def build_phantom_store(store, dataset, index_set, nmbrs,
 
     # positive pair set is built always
     shape = sel['train']['inputs'].shape
-    train = grp.create_dataset(name=mtch_name, shape=(2*shape[0]*nmbrs, dimx*dimy),
-            dtype=np.float32)
+
+    if label:
+        print "Building classes -- # of classes is {0}.".format(shape[0])
+        train = grp.create_dataset(name=mtch_name,
+                shape=(shape[0]*nmbrs, dimx*dimy), dtype=np.float32)
+        trgt = grp.create_dataset(name='targets', shape=(shape[0]*nmbrs,),
+            dtype=np.int32)
+        cur_class = 0
+    else:
+        train = grp.create_dataset(name=mtch_name,
+                shape=(2*shape[0]*nmbrs, dimx*dimy), dtype=np.float32)
+
     i = 0
     for elem in sel['train']['inputs']:
         x = elem.reshape(patch_x, patch_y)
@@ -825,11 +842,21 @@ def build_phantom_store(store, dataset, index_set, nmbrs,
         ymin, ymax = oy - dimy//2, oy + dimy//2
         tmp = x[xmin:xmax, ymin:ymax]
         tmp = tmp.ravel()
-        for j, p in enumerate(ph):
-            train[i+2*j, :] = tmp
-            train[i+2*j+1,:] = p
-        i = i + 2*nmbrs
-    helpers._shuffle_pairs(train)
+        if label:
+            for j, p in enumerate(ph):
+                train[i+j, :] = p
+                trgt[i+j] = cur_class
+            cur_class = cur_class + 1
+            i = i + nmbrs
+        else:
+            for j, p in enumerate(ph):
+                train[i+2*j, :] = tmp
+                train[i+2*j+1,:] = p
+            i = i + 2*nmbrs
+    if label:
+        helpers._shuffle_sync(train, trgt)
+    else:
+        helpers._shuffle_pairs(train)
     sel.close()
     
     if nonmatch:
@@ -856,6 +883,7 @@ def build_phantom_store(store, dataset, index_set, nmbrs,
             i = i + 2*nmbrs
         helpers._shuffle_pairs(train)
         sel.close()
+        print "You need to fuse mtch and non-mtch pairs into one dataset!"
     f.close()
 
 
