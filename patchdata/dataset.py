@@ -89,14 +89,20 @@ def build_evaluate_store(store, dataset=dataset, pair_list=_default_pairings, pa
     later evaluation (avoid costly rebuilding everyting into float64).
     For this reason, reconsider when 'extending' pair_list into the 100.000
     range.
+
+    Usage:
+    >>> # build evaluate stores of the size used in publications
+    >>> # (i.e. 50000 pairs).
+    >>> store = ds.get_store()
+    >>> ds.build_evaluate_store(store, pair_list=(50000,))
     """
     if tag is None:
         tag = ""
     else:
         tag = "".join([tag, "_"])
     for ds in dataset:
-        fname = "".join([tag, "evaluate_", ds, "_", "64x64.h5"])
-        print "\nBuilding evaluate store", fname, "for", pair_list
+        fname = "{0}evaluate_{1}_64x64.h5".format(tag, ds)
+        print "\nBuilding evaluate store {0} for {1}".format(fname, pair_list)
         f = h5py.File(join(path, fname), "w")
         for pairs in pair_list:
             grp = f.create_group(name=str(pairs))
@@ -114,8 +120,14 @@ def build_supervised_store(dataset=dataset, sz=250000, pairings=True):
     on 'dataset'. It has _sz_ many pairs of matches and _sz_ many pairs
     of non-matches. If _pairings_ is True, first build the split match/non-match
     base hdf5 for _dataset_.
+    Usage:
+    >>> # build stores for supervised (e.g. DrLim CNNs) with largest canoncial
+    >>> # size of pairs. Note: This has pairings set to True, so quite some
+    >>> # intermediate ('supervised_250000_...') hdf5 stores will be built -> delete
+    >>> store = ds.get_store()
+    >>> ds.build_supervised_store()
     """
-    print "Building supervised flat store for", dataset, sz
+    print "Building supervised flat store for {0}, pairs per site {1}".format(dataset, sz)
 
     if pairings:
         print "Building non-flat base store first."
