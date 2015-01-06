@@ -95,6 +95,10 @@ def build_evaluate_store(store, dataset=dataset, pair_list=_default_pairings, pa
     >>> # (i.e. 50000 pairs).
     >>> store = ds.get_store()
     >>> ds.build_evaluate_store(store, pair_list=(50000,))
+    >>> # possibly, rename these evaluation stores.
+    >>> # possibly, symbolic link to these evaluation stores.
+    >>> # possibly, these evaluation stores need more processing
+    >>> # -> save processed data in this folder and symbolic link to here.
     """
     if tag is None:
         tag = ""
