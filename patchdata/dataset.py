@@ -181,14 +181,18 @@ def build_supervised_scale_store(dataset, sz, scale="laplace", depth=3, fused=No
 def build_supervised_merge_store(mergers, sz):
     """
     Merge two _fused_stores into one large store.
+
+    >>> ds.build_supervised_merge_store(["notredame", "liberty"], 250000)
+    >>> ds.build_supervised_merge_store(["notredame", "yosemite"], 250000)
+    >>> ds.build_supervised_merge_store(["liberty", "yosemite"], 250000)
     """
     print "Building supervised flat merge store for {0}, pairs per mergers {1}".format(mergers, sz)
 
     s1 = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, mergers[0])
-    s1 = ds.get_store(s1)
+    s1 = get_store(s1)
 
     s2 = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, mergers[1])
-    s2 = ds.get_store(s2)
+    s2 = get_store(s2)
     
     mergers = "{0}+{1}".format(mergers[0], mergers[1])
     fname = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(2*sz, mergers)
