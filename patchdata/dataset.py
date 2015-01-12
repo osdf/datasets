@@ -178,6 +178,24 @@ def build_supervised_scale_store(dataset, sz, scale="laplace", depth=3, fused=No
     return scaled
 
 
+def build_supervised_merge_store(mergers, sz):
+    """
+    Merge two _fused_stores into one large store.
+    """
+    print "Building supervised flat merge store for {0}, pairs per mergers {1}".format(mergers, sz)
+
+    s1 = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, mergers[0])
+    s1 = ds.get_store(s1)
+
+    s2 = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, mergers[1])
+    s2 = ds.get_store(s2)
+    
+    mergers = "{0}+{1}".format(mergers[0], mergers[1])
+    fname = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(2*sz, mergers)
+    merged = merge_store(s1, s2, cache=True, fname=fname)
+    merged.close()
+
+
 def info(dataset=dataset):
     """Print out basic information about _dataset_.
 
@@ -447,16 +465,20 @@ def fuse_store(store, key, groups=["match", "non-match"], labels=[1,0],
     return fuse
 
 
-def merge_store(store1, store2, stride=4, cache=False):
+def merge_store(store1, store2, stride=4, cache=False, 
+        fname=None):
     """
     A new store that merges images from store1 and store2
     into one main store.
     """
     print "Merge stores", store1, store2
-    sfn1 = store1.filename.split(".")[0]
-    sfn2 = store2.filename.split(".")[0]
-    name = hashlib.sha1(sfn1 + sfn2 + str(stride))
-    name = name.hexdigest()[:8] + ".merge.h5"
+    if fname is None:
+        sfn1 = store1.filename.split(".")[0]
+        sfn2 = store2.filename.split(".")[0]
+        name = hashlib.sha1(sfn1 + sfn2 + str(stride))
+        name = name.hexdigest()[:8] + ".merge.h5"
+    else:
+        name = fname
     if cache is True and exists(name):
         print "Using cached version ", name
         return h5py.File(name, 'r+')
