@@ -476,9 +476,9 @@ def merge_store(store1, store2, stride=4, cache=False,
     into one main store.
     """
     print "Merge stores", store1, store2
+    sfn1 = store1.filename.split(".")[0]
+    sfn2 = store2.filename.split(".")[0]
     if fname is None:
-        sfn1 = store1.filename.split(".")[0]
-        sfn2 = store2.filename.split(".")[0]
         name = hashlib.sha1(sfn1 + sfn2 + str(stride))
         name = name.hexdigest()[:8] + ".merge.h5"
     else:
