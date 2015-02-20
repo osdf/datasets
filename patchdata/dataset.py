@@ -956,10 +956,11 @@ def flip_patches(patches):
     Flip patches (either 90 degrees left right, or 180 degrees).
     Assume that patches come in pairs.
     """
+    import theano
     n, d = patches.shape
     dx = int(np.sqrt(d))
     tmp = patches.reshape((n, dx, dx))
-    result = np.zeros((n, d))
+    result = np.zeros((n, d), dtype=theano.config.floatX)
     for j in xrange(n/2):
         flips = np.random.rand()
         # only flip at most one image
