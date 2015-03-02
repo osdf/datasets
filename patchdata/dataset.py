@@ -963,13 +963,12 @@ def flip_patches(patches):
     result = np.zeros((n, d), dtype=theano.config.floatX)
     for j in xrange(n/2):
         flips = np.random.rand()
-        # only flip at most one image
-        if flips < 0.33:
+        if flips < 0.5:
             # no flipping
             result[2*j, :] = patches[2*j]
             result[2*j + 1, :] = patches[2*j + 1]
         else:
-            # either p1 or p2 flips
+            p1 = img.fromarray(tmp[2*j])
             p2 = img.fromarray(tmp[2*j + 1])
             # determine random flip
             rnd1 = np.random.rand()
@@ -980,17 +979,10 @@ def flip_patches(patches):
             else:
                 flip = img.ROTATE_270
 
-            if flips < 0.66:
-                # p1 flips
-                p1 = img.fromarray(tmp[2*j])
-                p1 = p1.transpose(flip)
-                result[2*j, :] = np.asarray(p1).ravel()
-                result[2*j+1,:] = patches[2*j+1]
-            else:
-                p2 = img.fromarray(tmp[2*j+1])
-                p2 = p2.transpose(flip)
-                result[2*j, :] = patches[2*j]
-                result[2*j+1,:] = np.asarray(p2).ravel()
+            p1 = p1.transpose(flip)
+            p2 = p2.transpose(flip)
+            result[2*j, :] = np.asarray(p1).ravel()
+            result[2*j+1,:] = np.asarray(p2).ravel()
     return result
 
 
