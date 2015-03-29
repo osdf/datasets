@@ -155,6 +155,53 @@ def build_supervised_store(dataset=dataset, sz=250000, pairings=True):
     return fsd
 
 
+def build_resize_stores(shape, dset=dataset, evaluate=True, supervised=True,
+        sz=250000, select=True, samples=400000):
+    """Helper function for building resized datastores: Resize all 
+    standard evaluation stores, resize (if wanted) the fused (flat) 
+    store for supervised training on 'dataset'. If _select_ is set,
+    select _samples_ many random samples from _dataset_ and resize.
+    Usage:
+    >>> ds.build_resized_store()
+    """
+    print "Building resized store for {0} with new shape {1}x{2}".format(dataset, shape, shape)
+
+    if evaluate:
+        print "Building resized store for all evaluates"
+        for ds in dataset:
+            fname = "supervised_50000_evaluate_{0}_64x64.h5".format(ds)
+            store = get_store(fname)
+            # resized evaluates
+            fname = "supervised_50000_evaluate_{0}_{1}x{2}.h5".format(ds, shape, shape)
+            eval_rszd = resize_store(store, (shape, shape), cache=True, name=fname)
+            store.close()
+            eval_rszd.close()
+    
+    if select:
+        print "Selecting stores from {0}.".format(dset)
+        patches = get_store()
+        for ds in dset:
+            idx_st = (samples, 10000)
+            name = "{0}_{1}.select.h5".format(ds, samples)
+            selection = select(patches, dataset=[ds], index_set=idx_st, cache=True, name=name)
+            name = "{0}_{1}_{2}x{3}.select.h5".format(ds, samples, shape, shape)
+            rszd = resize_store(selection, (shape, shape), cache=True, name=name)
+            selection.close()
+        patches.close()
+
+    if supervised:
+        print "Resizing fused stores for {0}.".format(dset)
+        for ds in dset:
+            fname = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, ds)
+            # fuse this store
+            store = get_store(fname)
+            fname = "supervised_{0}_evaluate_{1}_fuse_{2}x{3}.h5".format(sz, ds, shape, shape)
+            eval_rszd = resize_store(store, (shape, shape), cache=True, name=fname)
+            store.close()
+            eval_rszd.close()
+    print "Probably remove unnececssary intermediate stores."
+
+
 def build_supervised_scale_store(dataset, sz, scale="laplace", depth=3, fused=None):
     """Helper function for building a (flat) store for supervised training
     on 'dataset' with scale information. It has _sz_ many pairs of matches and _sz_ many pairs
@@ -222,7 +269,7 @@ def info(dataset=dataset):
 
 
 def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
-        chunk=512, cache=True, dim=patch_x*patch_y):
+        chunk=512, cache=True, dim=patch_x*patch_y, name=None):
     """Select from the _dataset_s in _store_ some patches, specified by _index_set_.
 
     A _store_ has the three subsets ["liberty", "notredame", "yosemite"].
@@ -239,11 +286,14 @@ def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
     random.seed()
 
     assert len(dataset) == len(index_set), "Every dataset needs its indices"
-
-    name = hashlib.sha1(str(store.attrs["patch_shape"]) + str(dataset) + str(index_set))
-    name = name.hexdigest()[:8] + ".select.h5"
+    if name is None:
+        print "Generating store name by hashing."
+        name = hashlib.sha1(str(store.attrs["patch_shape"]) + str(dataset) + str(index_set))
+        name = name.hexdigest()[:8] + ".select.h5"
+    else:
+        print "Store name is given:", name
     if cache is True and exists(name):
-        print "Using cached version ", name
+        if verbose: print "Using cached version ", name
         return h5py.File(name, 'r+')
 
     select = h5py.File(name, 'w')
