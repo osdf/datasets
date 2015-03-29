@@ -156,7 +156,7 @@ def build_supervised_store(dataset=dataset, sz=250000, pairings=True):
 
 
 def build_resize_stores(shape, dset=dataset, evaluate=True, supervised=True,
-        sz=250000, select=True, samples=400000):
+        sz=250000, selecting=True, samples=400000):
     """Helper function for building resized datastores: Resize all 
     standard evaluation stores, resize (if wanted) the fused (flat) 
     store for supervised training on 'dataset'. If _select_ is set,
@@ -167,7 +167,7 @@ def build_resize_stores(shape, dset=dataset, evaluate=True, supervised=True,
     print "Building resized store for {0} with new shape {1}x{2}".format(dataset, shape, shape)
 
     if evaluate:
-        print "Building resized store for all evaluates"
+        print "\nBuilding resized store for all evaluates"
         for ds in dataset:
             fname = "supervised_50000_evaluate_{0}_64x64.h5".format(ds)
             store = get_store(fname)
@@ -177,20 +177,20 @@ def build_resize_stores(shape, dset=dataset, evaluate=True, supervised=True,
             store.close()
             eval_rszd.close()
     
-    if select:
-        print "Selecting stores from {0}.".format(dset)
+    if selecting:
+        print "\nSelecting stores from {0}.".format(dset)
         patches = get_store()
         for ds in dset:
             idx_st = (samples, 10000)
             name = "{0}_{1}.select.h5".format(ds, samples)
-            selection = select(patches, dataset=[ds], index_set=idx_st, cache=True, name=name)
+            selection = select(patches, dataset=[ds], index_set=[idx_st], cache=True, name=name)
             name = "{0}_{1}_{2}x{3}.select.h5".format(ds, samples, shape, shape)
             rszd = resize_store(selection, (shape, shape), cache=True, name=name)
             selection.close()
         patches.close()
 
     if supervised:
-        print "Resizing fused stores for {0}.".format(dset)
+        print "\nResizing fused stores for {0}.".format(dset)
         for ds in dset:
             fname = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, ds)
             # fuse this store
