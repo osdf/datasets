@@ -176,27 +176,29 @@ def build_resize_stores(shape, dset=dataset, evaluate=True, supervised=True,
             eval_rszd = resize_store(store, (shape, shape), cache=True, name=fname)
             store.close()
             eval_rszd.close()
+            print
     
     if selecting:
-        print "\nSelecting stores from {0}.".format(dset)
+        print "\n\nSelecting stores from {0}.".format(dset)
         patches = get_store()
         for ds in dset:
             idx_st = (samples, 10000)
             name = "{0}_{1}.select.h5".format(ds, samples)
             selection = select(patches, dataset=[ds], index_set=[idx_st], cache=True, name=name)
+            print
             name = "{0}_{1}_{2}x{3}.select.h5".format(ds, samples, shape, shape)
             rszd = resize_store(selection, (shape, shape), cache=True, name=name)
             selection.close()
         patches.close()
 
     if supervised:
-        print "\nResizing fused stores for {0}.".format(dset)
+        print "\n\nResizing fused stores for {0}.".format(dset)
         for ds in dset:
             fname = "supervised_{0}_evaluate_{1}_fuse_64x64.h5".format(sz, ds)
             # fuse this store
             store = get_store(fname)
             fname = "supervised_{0}_evaluate_{1}_fuse_{2}x{3}.h5".format(sz, ds, shape, shape)
-            eval_rszd = resize_store(store, (shape, shape), cache=True, name=fname)
+            eval_rszd = resize_store(store, (shape, shape), cache=True, exclude=["targets"], name=fname)
             store.close()
             eval_rszd.close()
     print "Probably remove unnececssary intermediate stores."
@@ -269,7 +271,7 @@ def info(dataset=dataset):
 
 
 def select(store, dataset=dataset, index_set=[(512, 32), (512, 32), (512, 32)],
-        chunk=512, cache=True, dim=patch_x*patch_y, name=None):
+        chunk=512, cache=True, dim=patch_x*patch_y, name=None, verbose=True):
     """Select from the _dataset_s in _store_ some patches, specified by _index_set_.
 
     A _store_ has the three subsets ["liberty", "notredame", "yosemite"].
@@ -601,7 +603,7 @@ def feat0_store(store, to_sub, chunk=512, exclude=[None], cache=False):
     return f0 
 
 
-def feat_std1_store(store, to_div, chunk=512, cache=False):
+def feat_std1_store(store, to_div, chunk=512, exclude=[None], cache=False):
     """
     New store has standard deviation 1 per feature.
     """
@@ -620,7 +622,7 @@ def feat_std1_store(store, to_div, chunk=512, cache=False):
     return fstd1
 
 
-def gstd1_store(store, to_div, chunk=512, cache=False, verbose=True):
+def gstd1_store(store, to_div, chunk=512, exclude=[None], cache=False, verbose=True):
     """A new store that has global std = 1.
     """
     if verbose:
