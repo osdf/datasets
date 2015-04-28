@@ -65,7 +65,7 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
             bmp = join(ds_path, ''.join(["patches", str(i).zfill(4), ".bmp"]))
             dset[i*per_bmp:(i+1)*per_bmp] = _crop_to_numpy(bmp)
         if mod > 0:
-            bmp = join(ds_path, ''.join(["patches", str(bmps).zfill(4), ".bmp"])) 
+            bmp = join(ds_path, ''.join(["patches", str(bmps).zfill(4), ".bmp"]))
             dset[-(totals%per_bmp):] = _crop_to_numpy(bmp)[:mod]
     f.attrs["dataset"] = dataset
     f.attrs["patch_shape"] = (patch_y, patch_x)
@@ -76,11 +76,11 @@ def build_store(fname="patchdata_64x64.h5", path=_default_path, dataset=dataset)
 def build_evaluate_store(store, dataset=dataset, pair_list=_default_pairings, path=_default_path, tag=None):
     """Put matching/non-matching pairs into a hdf5.
 
-    There is one hdf5 per dataset, with the available number of pairs 
-    in _pair_list_. These numbers form the groups of every store. 
-    The store is using the original patches, scaled versions of 
+    There is one hdf5 per dataset, with the available number of pairs
+    in _pair_list_. These numbers form the groups of every store.
+    The store is using the original patches, scaled versions of
     these patches should be generated with resize.
-    
+
     Every group has two datasets, 'match' and 'non-match',
     both arrays of equal length, the original pairs are formed by
     blocks of consecutive rows.
@@ -157,8 +157,8 @@ def build_supervised_store(dataset=dataset, sz=250000, pairings=True):
 
 def build_resize_stores(shape, dset=dataset, evaluate=True, supervised=True,
         sz=250000, selecting=True, samples=400000):
-    """Helper function for building resized datastores: Resize all 
-    standard evaluation stores, resize (if wanted) the fused (flat) 
+    """Helper function for building resized datastores: Resize all
+    standard evaluation stores, resize (if wanted) the fused (flat)
     store for supervised training on 'dataset'. If _select_ is set,
     select _samples_ many random samples from _dataset_ and resize.
     Usage:

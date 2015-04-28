@@ -72,12 +72,12 @@ def kl_g_g(v1, v2):
     """
     Kl divergence between v1 and v2 gaussians: use jensen shannon for gaussians.
     """
-    _, d = v1.shape
+    d = v1.shape[0]
     d = d//2
-    v1_m = v1[:, :d]
-    v1_lv = v1[:, d:] # log_var
-    v2_m = v2[:, :d]
-    v2_lv = v2[:, d:] # log_var
+    v1_m = v1[:d]
+    v1_lv = v1[d:] # log_var
+    v2_m = v2[:d]
+    v2_lv = v2[d:] # log_var
 
     v1_v = np.exp(v1_lv) # var
     v2_v = np.exp(v2_lv) # var
