@@ -5,3 +5,4 @@ yosemite/
 *.h5
 *.select
 *.crop
+*.npy
