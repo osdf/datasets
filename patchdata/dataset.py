@@ -617,7 +617,7 @@ def feat_std1_store(store, to_div, chunk=512, exclude=[None], cache=False):
 
     print "No cache, writing to", name
     fstd1 = h5py.File(name, 'w')
-    helpers.feat_div(store, fstd1, chunk=chunk, div=to_div)
+    helpers.feat_div(store, fstd1, chunk=chunk, div=to_div, exclude=exclude)
     fstd1.attrs["Feat_std1"] = "from " + str(store.filename)
     return fstd1
 

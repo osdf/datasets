@@ -68,6 +68,47 @@ def prod(v1, v2):
     return (n - np.sum(v1*v2))/2.
 
 
+def kl_g_g(v1, v2):
+    """
+    Kl divergence between v1 and v2 gaussians: use jensen shannon for gaussians.
+    """
+    _, d = v1.shape
+    d = d//2
+    v1_m = v1[:, :d]
+    v1_lv = v1[:, d:] # log_var
+    v2_m = v2[:, :d]
+    v2_lv = v2[:, d:] # log_var
+
+    v1_v = np.exp(v1_lv) # var
+    v2_v = np.exp(v2_lv) # var
+
+    # log(sig/sig) cancels if we add up
+    # first part: kl(v1, v2), but without part that cancels!
+    klv1v2 = (v1_v + (v1_m-v2_m)**2)/(2*v2_v + eps) - 0.5
+    klv1v2 = klv1v2.sum()
+    klv2v1 = (v2_v + (v1_m-v2_m)**2)/(2*v1_v + eps) - 0.5
+    klv2v1 = klv2v1.sum()
+    return klv1v2+klv2v1
+
+
+def kl_g_01(v1, v2):
+    """
+    special case: v1 and v2 are handled by multiview model.
+    In this case, v1 == v2 (the same latent representation).
+    Only use v1 to compute the KL divergence to 0/1 Gaussian.
+    """
+    _, d = v1.shape
+    d = d//2
+    mean = v1[:, :d]
+    log_var = v1[:, d:]
+    var = np.exp(log_var)
+
+    kl = (mean**2 + var - log_var - 1)
+    kl = kl.sum()
+    kl = kl/2.
+    return kl
+
+
 _dist_table = {
     "L2": l2_dist
     ,"L2H": l2_dist_half
@@ -77,6 +118,8 @@ _dist_table = {
     ,"CHI": chi_dist
     ,"JSD": jsd
     ,"PRD": prod
+    ,"KLG01": kl_g_01
+    ,"KL_G_G": kl_g_g
 }
 
 
