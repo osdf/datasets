@@ -10,7 +10,7 @@ import h5py
 from time import strftime
 
 try:
-    import Image as img
+    from PIL import Image as img
 except:
     import PIL as img
 
