@@ -79,7 +79,7 @@ def _shuffle_sync(store1, store2):
 
 
 def shuffle_list(lst):
-    """Shuffle _lst_ 
+    """Shuffle _lst_
     """
     n = len(lst)
     for i in xrange(n):
@@ -96,7 +96,7 @@ def _scale_01(arr, eps=1e-10):
     """
     newarr = arr.copy()
     mn = newarr.min()
-    newarr -= mn 
+    newarr -= mn
     mx = newarr.max()
     newarr *= 1.0/(mx + eps)
     return newarr
@@ -117,20 +117,20 @@ def visualize(array, rsz, shape_r=None, xtiles=None, fill=0):
     """
     sz = array.size
     fields = array.reshape(sz/rsz, rsz)
-    
+
     # tiles per axes
     xtiles = xtiles if xtiles else int(np.sqrt(sz/rsz))
     ytiles = int(np.ceil(sz/rsz/(1.*xtiles)))
     if shape_r is None:
         shape_r = int(np.sqrt(rsz))
     shape_c = int(rsz/shape_r)
-    
+
     # take care of extra pixels for borders
     pixelsy = ytiles * shape_r + ytiles + 1
     pixelsx = xtiles * shape_c + xtiles + 1
     # the tiling has this shape and _fill_ background
     tiling = fill*np.ones((pixelsy, pixelsx), dtype = 'uint8')
-    
+
     for row in xrange(ytiles):
         for col in xrange(xtiles):
             if (col+row*xtiles) < fields.shape[0]:
@@ -185,7 +185,7 @@ def pca(data, covered=None, whiten=False, chunk=512, **schedule):
     for i in xrange(0, n, chunk):
         tmp = np.array(data[i:i+chunk])
         cov += np.dot(tmp.T, tmp)
-    cov /= n 
+    cov /= n
     u, s, v = la.svd(cov, full_matrices=False)
     if covered is None:
         retained = d
@@ -210,7 +210,7 @@ def zca(data, eps=1e-5, chunk=512, **schedule):
     for i in xrange(0, n, chunk):
         tmp = np.array(data[i:i+chunk])
         cov += np.dot(tmp.T, tmp)
-    cov /= n 
+    cov /= n
     u, s, v = la.svd(cov, full_matrices=False)
     comp = np.dot(np.dot(u, np.diag(1./np.sqrt(s + eps))), u.T)
     return comp, s

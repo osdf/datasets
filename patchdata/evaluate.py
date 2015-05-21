@@ -26,7 +26,7 @@ def ham_dist(v1, v2):
 
 def l1_dist(v1, v2):
     """L1 distance between v1 and v2."""
-    dist = np.sum(np.abs(v1-v2)) 
+    dist = np.sum(np.abs(v1-v2))
     return dist
 
 
@@ -79,16 +79,40 @@ def kl_g_g(v1, v2):
     v2_m = v2[:d]
     v2_lv = v2[d:] # log_var
 
-    v1_v = np.exp(v1_lv) # var
-    v2_v = np.exp(v2_lv) # var
+    v1_v = np.exp(v1_lv) + 1e-6 # var
+    v2_v = np.exp(v2_lv) + 1e-6 # var
 
     # log(sig/sig) cancels if we add up
     # first part: kl(v1, v2), but without part that cancels!
-    klv1v2 = (v1_v + (v1_m-v2_m)**2)/(2*v2_v + eps) - 0.5
+    klv1v2 = (v1_v + (v1_m-v2_m)**2)/(2*v2_v) - 0.5
     klv1v2 = klv1v2.sum()
-    klv2v1 = (v2_v + (v1_m-v2_m)**2)/(2*v1_v + eps) - 0.5
+    klv2v1 = (v2_v + (v1_m-v2_m)**2)/(2*v1_v) - 0.5
     klv2v1 = klv2v1.sum()
     return klv1v2+klv2v1
+
+
+def nppk(v1, v2):
+    """
+    Negative Probabilistic Produkt Kernel.
+    """
+    d = v1.shape[0]
+    d = d//2
+    v1_m = v1[:d]
+    v1_lv = v1[d:] # log_var
+    v2_m = v2[:d]
+    v2_lv = v2[d:] # log_var
+
+    v1_v = np.exp(v1_lv) + 1e-6 # var
+    v2_v = np.exp(v2_lv) + 1e-6 # var
+
+    var_sum = v1_v + v2_v
+    mu_diff_sqr = (v1_m - v2_m)**2
+    mu_diff_sqr = mu_diff_sqr/var_sum
+    dist = np.sum(mu_diff_sqr)
+    dist = dist + np.sum(np.log(var_sum))
+    dist = dist + d*np.log(2*np.pi)
+    dist = 0.5*dist
+    return dist
 
 
 def kl_g_01(v1, v2):
@@ -120,6 +144,7 @@ _dist_table = {
     ,"PRD": prod
     ,"KLG01": kl_g_01
     ,"KL_G_G": kl_g_g
+    ,"NPPK": nppk
 }
 
 
