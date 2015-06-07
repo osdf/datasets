@@ -54,7 +54,7 @@ _default_path = dirname(__file__)
 _bin_path = dirname(__file__) + "./stl10_binary"
 
 
-def get_store(fname="stl_96x96_train.h5", path=_default_path, 
+def get_store(fname="stl_96x96_train.h5", path=_default_path,
         verbose=True, access='r'):
 
     if verbose:
@@ -82,13 +82,13 @@ def build_store(origin="train", path=_bin_path, consecutive=True):
         inpts = "test_X.bin"
         lbls = "test_y.bin"
     totals = classes * size
-    
+
     print "Writing to", fname
     h5f = h5py.File(fname, "w")
 
     # data is available in binary fromat
     f = open(join(path, inpts), "rb")
-    
+
     dset = h5f.create_dataset(name="inpts", shape=(totals,\
             channels*patch_x*patch_y), dtype=np.uint8)
     tmp = np.zeros((channels, patch_x * patch_y), dtype=np.uint8)
@@ -108,7 +108,7 @@ def build_store(origin="train", path=_bin_path, consecutive=True):
             else:
                 dset[i, :] = tmp.T.ravel()
     f.close()
-    
+
     f = open(join(path, lbls), "rb")
     cset = h5f.create_dataset(name="trgts",\
             shape=(totals,), dtype=np.int)
@@ -121,8 +121,8 @@ def build_store(origin="train", path=_bin_path, consecutive=True):
             return
         cset[i] = ord(lbl) - 1
     f.close()
- 
-    h5f.attrs["stl"] = origin 
+
+    h5f.attrs["stl"] = origin
     h5f.attrs["patch_shape"] = (patch_y, patch_x)
     h5f.attrs["channels"] = channels
     h5f.close()
@@ -180,9 +180,9 @@ def gray_store(store="stl_96x96_train.h5",
     store = store.split('.')
     fname = store[0] + "_gray." + store[1]
     store = store[0] + "_rgb." + store[1]
-    
+
     print "And now reading from {0}".format(store)
-    store = get_store(fname=store) 
+    store = get_store(fname=store)
 
     print "Writing to", fname
     h5f = h5py.File(fname, "w")
@@ -199,7 +199,7 @@ def gray_store(store="stl_96x96_train.h5",
     cset = h5f.create_dataset(name="trgts",\
             shape=(totals,), dtype=np.int)
     for i in xrange(totals):
-        cset[i] = store["trgts"][i] 
+        cset[i] = store["trgts"][i]
 
     h5f.attrs["GrayStore"] = "from " + str(store.filename)
 
@@ -240,12 +240,12 @@ def pair_store(store, fname, pairs):
 
             if p1 > p2:
                 p1, p2 = p2, p1
-            
+
             if (p1, p2) in positives:
                 continue
-            
+
             positives.append((p1, p2))
-            
+
             cnt = cnt + 1
             if cnt == pairs:
                 print "Done with class", c
@@ -271,7 +271,7 @@ def pair_store(store, fname, pairs):
 
             if n1 > n2:
                 n1, n2 = n2, n1
-            
+
             if (n1, n2) not in negatives:
                 negatives.append((n1, n2))
                 break
@@ -281,7 +281,7 @@ def pair_store(store, fname, pairs):
     print "Check pairings ..."
     for p in positives:
         p1, p2 = p
-        assert lbls[p1] == lbls[p2], "Different classes %d, %d"%(lbls[p1], lbls[p2]) 
+        assert lbls[p1] == lbls[p2], "Different classes %d, %d"%(lbls[p1], lbls[p2])
         if p1 > p2:
             print "MISTAKE: p1 > p2", p1, p2
             assert False
@@ -290,7 +290,7 @@ def pair_store(store, fname, pairs):
     print "Positives ok ..."
     for n in negatives:
         n1, n2 = n
-        assert lbls[n1] != lbls[n2], "Same classes %d, %d"%(lbls[n1], lbls[n2]) 
+        assert lbls[n1] != lbls[n2], "Same classes %d, %d"%(lbls[n1], lbls[n2])
         if n1 > n2:
             print "MISTAKE: n1 > n2", n1, n2
             assert False
@@ -305,10 +305,11 @@ def pair_store(store, fname, pairs):
     grp = h5f.create_group("train")
     grp.attrs["patch_shape"] = (patch_x, patch_y)
 
-    ins = grp.create_dataset(name="inpts", shape=(4*totals, patch_x*patch_y), dtype=np.float32)
-    ins.attrs["patch_shape"] = (patch_x, patch_y)
+    ins = grp.create_dataset(name="inpts", shape=(4*totals, inpts.shape[1]), dtype=np.float32)
+    dx = np.int(np.sqrt(inpts.shape[1]))
+    ins.attrs["patch_shape"] = (dx, dx)
     trgts = grp.create_dataset(name="trgts", shape=(4*totals,), dtype=np.int)
-    
+
     for t in xrange(totals):
         p1, p2 = positives[t]
         ins[4*t,:] = inpts[p1]
