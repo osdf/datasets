@@ -8,37 +8,37 @@ _default_name = join(dirname(__file__), "mnist.h5")
 
 
 def get_store(fname=_default_name):
-    print "Loading from store", fname
+    print("Loading from store {}".format(fname))
     return h5py.File(fname, 'r')
 
 
-def build_store(store="mnist.h5", mnist="mnist.pkl.gz"):
+def build_store(store=_default_name, mnist="mnist.pkl.gz"):
     """Build a hdf5 data store for MNIST.
     """
-    print "Reading", mnist
+    print("Reading {}".format(mnist)
     mnist_f = gzip.open(mnist,'rb')
     train_set, valid_set, test_set = cPickle.load(mnist_f)
     mnist_f.close()
 
-    print "Writing to", store
+    print("Writing to {}").format(store)
     h5file = h5py.File(store, "w")
 
-    print "Creating train set."
+    print("Creating train set.")
     grp = h5file.create_group("train")
     dset = grp.create_dataset("inputs", data = train_set[0])
     dset = grp.create_dataset("targets", data = train_set[1])
 
-    print "Creating validation set."
+    print("Creating validation set.")
     grp = h5file.create_group("validation")
     dset = grp.create_dataset("inputs", data = valid_set[0])
     dset = grp.create_dataset("targets", data = valid_set[1])
 
-    print "Creating test set."
+    print("Creating test set.")
     grp = h5file.create_group("test")
     dset = grp.create_dataset("inputs", data = test_set[0])
     dset = grp.create_dataset("targets", data = test_set[1])
 
-    print "Closing", store
+    print("Closing {}".format(store)
     h5file.close()
 
 
