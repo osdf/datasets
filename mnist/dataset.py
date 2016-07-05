@@ -15,7 +15,7 @@ def get_store(fname=_default_name):
 def build_store(store=_default_name, mnist="mnist.pkl.gz"):
     """Build a hdf5 data store for MNIST.
     """
-    print("Reading {}".format(mnist)
+    print("Reading {}").format(mnist)
     mnist_f = gzip.open(mnist,'rb')
     train_set, valid_set, test_set = cPickle.load(mnist_f)
     mnist_f.close()
@@ -38,7 +38,7 @@ def build_store(store=_default_name, mnist="mnist.pkl.gz"):
     dset = grp.create_dataset("inputs", data = test_set[0])
     dset = grp.create_dataset("targets", data = test_set[1])
 
-    print("Closing {}".format(store)
+    print("Closing {}").format(store)
     h5file.close()
 
 
