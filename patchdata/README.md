@@ -2,9 +2,10 @@ These are the patches downloadable from
 [http://www.cs.ubc.ca/~mbrown/patchdata/patchdata.html].
 
 The three datasets ```liberty```, ```notredame``` and ```yosemite```:
-- ```wget http://www.cs.ubc.ca/~mbrown/patchdata/liberty.zip```
-- ```wget http://www.cs.ubc.ca/~mbrown/patchdata/notredame.zip```
-- ```wget http://www.cs.ubc.ca/~mbrown/patchdata/yosemite.zip```
+- ```wget -c http://matthewalunbrown.com/patchdata/liberty.zip```
+- ```wget -c http://matthewalunbrown.com/patchdata/notredame.zip```
+- ```wget -c http://matthewalunbrown.com/patchdata/yosemite.zip```
+
 
 Extract all three zip files into ```liberty/```, ```notredame/```,
 ```yosemite/``` respectively.
